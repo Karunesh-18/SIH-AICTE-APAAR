@@ -8,11 +8,11 @@ Every student record is tied to one APAAR ID. After admissions, an institution u
 
 ## Status
 
-All eight phases of the build plan are built. The platform runs on SQLite with synthetic data. Nothing has been opened in a real browser yet, and the Docker path is untested.
+All eight phases of the build plan are built, and later work is merged to `dev`. The platform runs on SQLite with synthetic data. A browser pass was done and its findings are fixed, but not every screen is recorded as checked. The Docker path is untested.
 
 | Part | Status |
 |---|---|
-| FastAPI backend: JWT login and refresh, five roles, object-level scope, permission matrix over every route | Built. Tested. |
+| FastAPI backend: JWT login and refresh (refresh tokens rotate with reuse detection, ADR-026), five roles, object-level scope, permission matrix over every route | Built. Tested. |
 | Audit chain with verify and a tamper demo | Built. Tested. |
 | Institutions, users, staff, regions and API keys (per institution, scope `records:submit`) | Built. Tested. |
 | Student upload (CSV, XLSX, XLS, JSON), templates, and the REST batch endpoint | Built. Tested. |
@@ -23,11 +23,13 @@ All eight phases of the build plan are built. The platform runs on SQLite with s
 | Submission windows, reminder ladder, scheduled R09 to R12, late list | Built. Tested. Thresholds are placeholders. |
 | Dashboards and reports (CSV export), with figures that equal each other | Built. Tested. |
 | Consent ledger, purpose policies, verifier approval, Ed25519 signed results, public check API | Built. Tested. |
-| Demo clock, in-app notifications, transactional outbox | Built. Email is a console stub. |
-| Frontend: role-aware screens for every role, English and Hindi, light and dark themes | Built. Types, lint, unit tests and build pass. Not checked in a browser. |
+| Demo clock, in-app notifications, transactional outbox | Built. Email is console by default; SMTP adapter is built (see below). |
+| Printable certificate record with a signed CERTIFICATE QR token | Built. Tested. QR scan not checked in a browser. |
+| Frontend: role-aware screens for every role, English and Hindi, light and dark themes | Built. Types, lint, unit tests and build pass. A browser pass was done and its findings are fixed (PRs #16, #17). Charts, dialogs and layout not recorded as checked. |
 | Synthetic seed, `python -m app.seed --demo` | Built. |
 | Ten demo cases as one test through the HTTP API | Built. Not run in a browser. |
-| Real email (SMTP) and SMS | Not built. Console stubs. |
+| Real email (SMTP) | Built behind the email interface (ADR-027, `EMAIL_BACKEND=smtp`). Tested against a fake server only. |
+| SMS | Not built. Console stub. |
 | Encryption at rest, a job queue, object storage | Not built. |
 | `docker compose up` | Written. **Untested** (Docker is not installed on the dev machine). |
 

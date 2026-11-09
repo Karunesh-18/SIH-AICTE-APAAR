@@ -1,16 +1,18 @@
 # Handoff
 
-Last updated: 2026-11-09. Branch: `phase-7-frontend`.
+Last updated: 2026-11-10. Branch: `dev`.
 
 Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions are in `DECISIONS.md`.
 
 ## Current state
 
 - All eight phases of `PLAN.md` are built. Phase status and PR numbers are in `PROGRESS.md`.
-- Backend: 1003 tests pass. Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean.
+- Backend: 1003 tests pass. Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean. These counts are from the 2026-11-09 run. They have not been re-run since PRs #15 to #22.
 - Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
-- Built but not checked in a browser: every screen, both themes, charts, Hindi rendering, dialogs and the QR scan.
-- Email: console by default; SMTP adapter built (EMAIL_BACKEND=smtp, ADR-027), fake-server tested only. SMS is a console stub.
+- A browser pass was done. Its findings were fixed: theme hydration, nativeButton, Hindi gaps and select labels (commit `7aa625b`, PR #16), and missing evidence labels for R07 to R12 in English and Hindi (PR #17). The regression tests for these are jsdom and source-grep tests, not a browser run. Git does not record which screens the pass covered. Still unverified: charts in both themes, dialogs, layout, the QR scan, and Hindi on the new screens.
+- Refresh tokens rotate, with reuse detection, a grace window and logout revocation (ADR-026, PR #20). Tested.
+- Printable certificate record at `/institution/records/[id]/certificate`. It has a signed CERTIFICATE token and a QR link to `/verify/[token]` (commit `0dcf181`, PR #22, migration 0008). Tested with pytest and vitest. The QR scan is not checked in a browser.
+- Email: console by default; SMTP adapter built (EMAIL_BACKEND=smtp, ADR-027), tested against a fake server only. SMS is a console stub.
 - Not built: encryption at rest, a job queue, object storage, and a registry lookup against real data.
 - Docker Compose is written but untested (Docker is not installed).
 
@@ -94,12 +96,12 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 
 ## Not verified
 
-- No screen has been opened in a real browser. The Chrome extension was never connected. Layout, both themes, charts, dialogs, Hindi rendering and the QR scan are all unchecked.
-- The walk-through above is written from the routes and the test. It has not been clicked through.
+- Still not recorded as checked: charts in both themes, dialogs, layout, the QR scan, and Hindi on the new screens.
+- The walk-through above is written from the routes and the test. Git does not record it as clicked through.
 - Docker Compose has not been run. Docker is not installed.
 - Hindi strings for the new screens have no native-speaker review.
 - The scheduler thread has not run in tests. Tests cover only the on and off switch.
-- SMS is a console stub. Email has an SMTP adapter (ADR-027), untested against a real provider.
+- SMS is a console stub. Email has an SMTP adapter (ADR-027), tested against a fake server only.
 - Playwright was not used.
 
 ## Known limits
@@ -156,16 +158,16 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 | No code is copied from the earlier prototypes. | Clean history, no hidden secrets. | ADR-004 |
 | Build order follows the plan's phases 0 to 7. The idea doc's order (section 31) is older. | The plan was revised after the idea doc. | `PLAN.md` |
 | Some API paths differ from the plan. Built paths are under `/api/v1/admin/...` and `/api/v1/auth/me`. | Routes were written in Phase 1. | `API.md` |
-| Phase 7 "Playwright demo" is a pytest module through HTTP. | No browser run was done. | `PROGRESS.md` |
+| Phase 7 "Playwright demo" is a pytest module through HTTP. | No automated browser run was done. A browser pass came later (PR #16). | `PROGRESS.md` |
 
 ## Next steps (in order)
 
-1. Browser pass of every screen, as each demo user, in light and dark themes and in Hindi. Record what breaks.
+1. Browser pass of every screen, as each demo user, in light and dark themes and in Hindi. A first pass was done (PR #16), but git does not say which screens it covered. Record what is checked and what breaks.
 2. Visual check of the dashboard charts in both themes, against the validated palette.
 3. Run `docker compose up` on a machine with Docker. Fix what fails. Until then, the Docker path stays "untested".
 4. SMTP email adapter done (ADR-027, fake-server tested). A real SMS provider is not started; plug it into SmsAdapter.
 5. Native-speaker review of the Hindi strings for the new screens.
-6. Merge the stack in order, `#2` to `#14`, into `dev` (see `PROGRESS.md`). Then open the `dev` to `main` PR at this milestone.
+6. The stack `#2` to `#14` is in `dev` (see `PROGRESS.md`). Open the `dev` to `main` PR at this milestone.
 7. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.
 
 ## Files not to edit

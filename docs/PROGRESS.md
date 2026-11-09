@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-11-09. Branch: `phase-7-frontend`.
+Last updated: 2026-11-10. Branch: `dev`.
 
 All eight phases in `docs/PLAN.md` are built. The phases are delivered as a stack of pull requests. Each PR's base is the branch of the PR before it. Merge state is not recorded here.
 
@@ -14,7 +14,7 @@ Run by the maintainer on 2026-11-09:
 
 Not verified:
 
-- No screen has been opened in a real browser. Layout, both themes, charts, Hindi rendering, dialogs and the QR scan are unchecked.
+- A browser pass was done. Its findings were fixed in PR #16 and PR #17. Git does not record which screens it covered. Still unchecked: charts in both themes, dialogs, layout, the QR scan and Hindi on the new screens.
 - Docker Compose is untested. Docker is not installed on the dev machine.
 - Hindi strings for the new screens have no native-speaker review.
 
@@ -24,7 +24,7 @@ Known limits are listed in `HANDOFF.md`.
 
 | Phase | Name | PR | Status | Done when (from the plan) |
 |---|---|---|---|---|
-| 0 | Setup | Not recorded | Built | `scripts/test.ps1` runs green. The shell shows in both themes (theme check not done in a browser). |
+| 0 | Setup | Not recorded | Built | `scripts/test.ps1` runs green. The shell shows in both themes (theme hydration fixed in PR #16; no full both-theme check recorded). |
 | 1 | Foundation | #2 (backend), #3 (frontend shell) | Built | Audit tests and role-scope tests pass. |
 | 2 | Student data | #4 | Built | The seed runs on an empty DB. The DB rejects a duplicate current record. |
 | 3 | Ingestion and checks | #5, #6 | Built | Rule tables pass. The Kaveri file gives 3 flags covering 8 rows. |
@@ -38,6 +38,18 @@ Phase 7 notes:
 - The ten demo cases run as one pytest module, `backend/tests/test_e2e_demo_cases.py`, through the HTTP API. They do not run in a browser. Playwright was not used.
 - `docker compose up` has not been run. It stays untested until a machine with Docker runs it (ADR-006).
 - The `dev` to `main` PR is still to be opened at this milestone.
+
+## Merged to `dev` after the stack
+
+Test counts in the Checks section are from 2026-11-09. They were not re-run for these PRs.
+
+- PR #15: frontend critique fixes (brand lockup, type scale, Reports toolbar groups, i18n gaps, demo login buttons off by default, select theming).
+- PR #16: browser-pass findings (theme hydration, nativeButton, Hindi gaps, select labels).
+- PR #17: missing evidence labels (en, hi) for R07 to R12.
+- PR #18: consent withdrawal names the student and purposes. Also the one-click launcher for non-technical teammates (commit `2f1a01c`).
+- PR #20: refresh-token rotation with reuse detection (ADR-026).
+- PR #21: SMTP email adapter behind the existing interface (ADR-027). Tested against a fake server only.
+- PR #22: printable certificate record with a signed CERTIFICATE QR token (migration 0008).
 
 ## Stacked PRs
 
