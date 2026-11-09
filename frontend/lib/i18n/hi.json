@@ -583,6 +583,7 @@
  "consent.status.expired": "अवधि समाप्त",
  "consent.status.withdrawn": "वापस ली गई",
  "consent.withdraw": "वापस लें",
+ "consent.withdrawConfirm": "सहमति वापस लें",
  "consent.withdrawTitle": "यह सहमति वापस लें?",
  "consent.withdrawBody": "अब से इसके अंतर्गत सत्यापनकर्ताओं को कोई उत्तर नहीं मिलेगा। इसे पलटा नहीं जा सकता; छात्र फिर सहमत हो तो नई सहमति दर्ज करें।",
  "consent.withdrawn": "सहमति वापस ली गई।",

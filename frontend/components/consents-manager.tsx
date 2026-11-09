@@ -132,7 +132,7 @@ export function ConsentsManager() {
           labels={{ empty: t("consent.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />
       </section>
 
-      <ConfirmDialog open={!!target} title={t("consent.withdrawTitle")} body={t("consent.withdrawBody")} confirmLabel={t("consent.withdraw")}
+      <ConfirmDialog open={!!target} title={t("consent.withdrawTitle")} body={target ? `${t("col.apaar")} ${target.apaar_id}; ${t("col.purpose")}: ${target.purposes.map((p) => t(`purpose.${p}`)).join(", ")}. ${t("consent.withdrawBody")}` : ""} confirmLabel={t("consent.withdrawConfirm")}
         cancelLabel={t("dialog.cancel")} pending={busy} onConfirm={withdraw} onClose={() => setTarget(null)} />
     </div>
   );

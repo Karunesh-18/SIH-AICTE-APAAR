@@ -583,6 +583,7 @@
  "consent.status.expired": "Expired",
  "consent.status.withdrawn": "Withdrawn",
  "consent.withdraw": "Withdraw",
+ "consent.withdrawConfirm": "Withdraw consent",
  "consent.withdrawTitle": "Withdraw this consent?",
  "consent.withdrawBody": "Verifiers will get no answers under it from now on. This cannot be undone; record a new consent if the student agrees again.",
  "consent.withdrawn": "Consent withdrawn.",
