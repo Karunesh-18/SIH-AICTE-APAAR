@@ -110,6 +110,7 @@ MATRIX = {
     ("POST", "/api/v1/admin/verifiers/{vreg}/approve"): row(admin=200),
     ("POST", "/api/v1/admin/verifiers/{vreg}/reject"): row(admin=200),
     ("GET", "/api/v1/admin/policies"): row(admin=200),
+    ("GET", "/api/v1/policies"): row(**ALL_OK),
     ("PUT", "/api/v1/admin/policies/EMPLOYMENT"): row(admin=200),
     ("POST", "/api/v1/verifications"): row(verifier=200),
     ("GET", "/api/v1/verifications"): row(admin=200, officer_south=200, inst_admin=200,
