@@ -106,7 +106,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 
 - Rate limits are in memory, per process. The login limit is per email. A known email can be locked out for 5 minutes.
 - One Ed25519 signing key, with no rotation. It is not encrypted at rest. Replacing it invalidates every issued token (ADR-022).
-- Access and refresh tokens are kept in `localStorage`, so any script on the page can read them (ADR-013). The refresh token is not rotated. A copied refresh token works until it expires (7 days).
+- Access and refresh tokens are kept in `localStorage`, so any script on the page can read them (ADR-013). Refresh tokens rotate with reuse detection (ADR-026): a copied token stops working once the real client refreshes. A script that reads the current token can still use it until it is rotated or expires (7 days).
 - No forced password change at first login (ADR-025).
 - Audit verify cannot detect deletion of the last rows, because nothing after them points back. Two concurrent audit appends return HTTP 500, with no retry.
 - R05 runs when a record arrives and when it is corrected (ADR-016). It does not run again when the other side changes. Withdrawing a record does not close the flag. Only an officer closes it.
