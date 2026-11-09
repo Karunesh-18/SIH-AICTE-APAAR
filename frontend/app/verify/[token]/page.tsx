@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fieldLabelKey, formatFieldValue, groupKid, verifyView } from "@/lib/consent";
+import { cacheKey, cachedKey, verifyOffline } from "@/lib/offline-verify";
 import { formatDateTime } from "@/lib/status";
 import type { PublicCheck, PublicKey } from "@/lib/types";
 
@@ -22,7 +23,7 @@ const TONES = {
 
 function KeyInfo() {
   const { t } = useAuth();
-  const k = useQuery<PublicKey, ApiError>({ queryKey: ["public-key"], queryFn: () => api.get<PublicKey>("/verify/public-key"), retry: false });
+  const k = useQuery<PublicKey, ApiError>({ queryKey: ["public-key"], queryFn: async () => { const d = await api.get<PublicKey>("/verify/public-key"); cacheKey(d.jwk); return d; }, retry: false });
   return (
     <section className="flex flex-col gap-1 text-sm" aria-labelledby="key-h">
       <h2 id="key-h" className="font-medium">{t("verify.keyTitle")}</h2>
@@ -46,13 +47,27 @@ function CheckResult() {
   const q = useQuery<PublicCheck, ApiError>({
     queryKey: ["public-check", token],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/verify/${encodeURIComponent(token)}`);
+      let res: Response;
+      try { res = await fetch(`${BASE}/verify/${encodeURIComponent(token)}`); } catch { throw new ApiError(0, "network"); }
       if (!res.ok) throw new ApiError(res.status, res.statusText);
       return res.json();
     },
     retry: false,
     refetchOnWindowFocus: false,
   });
+  // Network or API failure (not a rate limit): fall back to the signature check with the cached key.
+  const down = q.isError && q.error.status !== 429;
+  const off = useQuery({
+    queryKey: ["offline-check", token, down],
+    enabled: down,
+    retry: false,
+    queryFn: async () => {
+      const jwk = cachedKey();
+      return jwk ? verifyOffline(token, jwk) : null;
+    },
+  });
+  const offKey = !off.data ? "verify.offline.noKey" : off.data.expired ? "verify.offline.expired"
+    : off.data.valid ? "verify.offline.ok" : `verify.offline.${off.data.reason}`;
   const v = q.data ? verifyView(q.data.status) : null;
   const Icon = v ? ICONS[v.icon] : ShieldQuestion;
 
@@ -64,6 +79,9 @@ function CheckResult() {
           <p className="text-muted-foreground">{t("verify.checking")}</p>
           <Skeleton className="h-28 w-full" />
         </div>
+      )}
+      {down && !off.isPending && (
+        <div role="status" aria-live="polite" className="rounded-md border border-border p-4 text-sm">{t(offKey)}</div>
       )}
       {q.isError && (
         <div role="alert" className="flex flex-col items-start gap-3 rounded-md border border-border p-4">
