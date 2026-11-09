@@ -3,16 +3,18 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import fail, require_roles
 from app.api.schemas import Strict
 from app.core.config import settings
 from app.db.session import get_db, uow
+from app.models.audit import AuditCheckpoint
 from app.models.consent import FIELDS, PURPOSES
 from app.models.enums import AICTE_ROLES, INSTITUTION_ROLES, Role
 from app.models.user import User
-from app.services import notify, ratelimit, signing, verification
+from app.services import audit, notify, ratelimit, signing, verification
 from app.services.errors import Conflict, Forbidden, NotFound, RateLimited
 
 router = APIRouter(tags=["verification"])
@@ -80,3 +82,27 @@ def check(token: str, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(429, "Too many checks. Try again shortly.")
     with uow(db):
         return verification.check(db, token)
+
+
+class CheckpointIn(Strict):
+    token: str = Field(min_length=1, max_length=4096)
+
+
+# Public: signed audit checkpoints are published so anyone can hold one and test the log later.
+@router.get("/audit/checkpoints")
+def list_checkpoints(db: Session = Depends(get_db)):
+    rows = db.scalars(select(AuditCheckpoint).order_by(AuditCheckpoint.id.desc()).limit(50))
+    return [audit.checkpoint_out(r) for r in rows]
+
+
+@router.post("/audit/checkpoints/verify")
+def verify_checkpoint(body: CheckpointIn, request: Request, db: Session = Depends(get_db)):
+    who = f"check:{request.client.host if request.client else '-'}"
+    if not ratelimit.take(who, settings.check_max_per_minute, timedelta(minutes=1)):
+        raise HTTPException(429, "Too many checks. Try again shortly.")
+    with uow(db):
+        out = audit.verify_against(db, body.token)
+        audit.append(db, actor_id=None, actor_role="PUBLIC", action="AUDIT.CHECKPOINT_CHECKED",
+                     entity_type="audit_checkpoint", entity_id="-",
+                     after={"ok": out["ok"], "reason": out["reason"]})
+    return out

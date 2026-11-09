@@ -18,7 +18,8 @@ EMAIL = {
 }
 PUBLIC = {("POST", "/api/v1/auth/login"), ("POST", "/api/v1/auth/refresh"), ("POST", "/api/v1/auth/logout"),
           ("POST", "/api/v1/verifiers/register"), ("GET", "/api/v1/verify/public-key"),
-          ("GET", "/api/v1/verify/{token}")}
+          ("GET", "/api/v1/verify/{token}"),
+          ("GET", "/api/v1/audit/checkpoints"), ("POST", "/api/v1/audit/checkpoints/verify")}
 
 
 def row(**expected):
@@ -40,6 +41,8 @@ MATRIX = {
     ("GET", "/api/v1/admin/audit"): row(admin=200),
     ("POST", "/api/v1/admin/audit/verify"): row(admin=200),
     ("POST", "/api/v1/admin/dev/tamper-audit"): row(admin=200),
+    ("POST", "/api/v1/admin/audit/checkpoint"): row(admin=200),
+    ("POST", "/api/v1/admin/dev/truncate-audit"): row(admin=200),
     ("GET", "/api/v1/notifications"): row(**ALL_OK),
     ("GET", "/api/v1/notifications/unread-count"): row(**ALL_OK),
     # notification belongs to admin; everyone else gets 404, never someone else's data

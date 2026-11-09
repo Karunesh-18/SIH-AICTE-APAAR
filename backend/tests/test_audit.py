@@ -17,7 +17,8 @@ def _write(db, n=3):
 
 def test_clean_chain_verifies(db):
     _write(db)
-    assert audit.verify(db) == {"ok": True, "count": 3, "first_broken_id": None}
+    assert audit.verify(db) == {"ok": True, "count": 3, "first_broken_id": None,
+                                "checkpoint": None}
 
 
 def test_empty_chain_is_ok(db):

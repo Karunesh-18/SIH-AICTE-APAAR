@@ -1,4 +1,4 @@
-from app.models.audit import AuditLog  # noqa: F401
+from app.models.audit import AuditCheckpoint, AuditLog  # noqa: F401
 from app.models.certificate import CertificateToken  # noqa: F401
 from app.models.consent import (  # noqa: F401
     Consent,
