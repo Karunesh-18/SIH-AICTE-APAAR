@@ -27,6 +27,7 @@ from app.models.student import (
     ValidationFlag,
 )
 from app.models.user import User, UserRegion
+from app.models.windows import SubmissionWindow
 
 DEMO_PASSWORD = "Demo@1234"
 CYCLE = 2026
@@ -275,6 +276,52 @@ def seed_demo_flags(db: Session) -> None:
         ingest.ingest(db, actor=None, institution_id=inst.id, cycle_year=CYCLE, data=data)
 
 
+PREVIOUS_CYCLE = {"Kaveri Valley College": 80, "Malabar Pharmacy College": 38,
+                  "Northfield Institute": 56}  # 2025 enrolment, so R10 has something to compare
+NEVER_SUBMIT = ("Cauvery Polytechnic", "Yamuna Pharmacy Institute")
+
+
+def seed_demo_windows(db: Session) -> None:
+    """A 2026 submission window (closes in 20 days on the demo clock), an older cycle for R10, and
+    two institutions that have not submitted (their seeded uploads, records and flags are removed),
+    so advancing the clock shows reminders, the late list and R09. Demo data only."""
+    from app.core import clock
+    from app.domain.ladder import DEFAULT_LADDER
+
+    if db.scalar(select(func.count()).select_from(SubmissionWindow)):
+        raise RuntimeError("A submission window already exists; run on a freshly seeded database.")
+    by_name = {i.name: i for i in db.scalars(select(Institution))}
+    for name in NEVER_SUBMIT:
+        inst_id = by_name[name].id
+        ups = select(Upload.id).where(Upload.institution_id == inst_id)
+        flags = select(ValidationFlag.id).where(ValidationFlag.institution_id == inst_id)
+        db.execute(delete(FlagEvent).where(FlagEvent.flag_id.in_(flags)))
+        db.execute(delete(FlagRecord).where(FlagRecord.flag_id.in_(flags)))
+        db.execute(delete(ValidationFlag).where(ValidationFlag.institution_id == inst_id))
+        db.execute(delete(StudentRecord).where(StudentRecord.upload_id.in_(ups)))
+        db.execute(delete(Upload).where(Upload.institution_id == inst_id))
+    n = 0
+    for name, count in PREVIOUS_CYCLE.items():
+        cur = db.scalars(select(Programme).where(
+            Programme.institution_id == by_name[name].id, Programme.cycle_year == CYCLE)).one()
+        old = Programme(institution_id=cur.institution_id, name=cur.name, level=cur.level,
+                        cycle_year=CYCLE - 1, duration_years=cur.duration_years,
+                        approved_intake=cur.approved_intake,
+                        supernumerary_seats=cur.supernumerary_seats)
+        db.add(old)
+        db.flush()
+        for _ in range(count):
+            n += 1
+            db.add(StudentRecord(apaar_id=f"9999{70000000 + n:08d}", name=f"Earlier cohort {n}",
+                                 dob=date(2000, 1, 1), programme_id=old.id, cycle_year=CYCLE - 1,
+                                 admission_date=date(2025, 7, 1), admission_category="OPEN",
+                                 status="valid", row_number=n))
+    now = clock.now()
+    db.add(SubmissionWindow(cycle_year=CYCLE, opens_at=now - timedelta(days=30),
+                            closes_at=now + timedelta(days=20), ladder=DEFAULT_LADDER))
+    db.commit()
+
+
 if __name__ == "__main__":
     from app.db.session import SessionLocal
 
@@ -282,9 +329,14 @@ if __name__ == "__main__":
     ap.add_argument("--reset", action="store_true", help="delete everything first")
     ap.add_argument("--with-flags", action="store_true",
                     help="then run the checks over the seeded uploads so real flags exist")
+    ap.add_argument("--with-windows", action="store_true",
+                    help="then add a submission window, an older cycle and two non-submitters "
+                         "(needs --with-flags)")
     args = ap.parse_args()
     with SessionLocal() as session:
         seed(session, reset=args.reset)
         if args.with_flags:
             seed_demo_flags(session)
+        if args.with_windows:
+            seed_demo_windows(session)
     print("Seeded. Demo users: *@demo.test, password", DEMO_PASSWORD)

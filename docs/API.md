@@ -113,9 +113,10 @@ Institution users answer flags on their own records. The plan does not say which
 
 | Method | Path | Who | Purpose | Audit |
 |---|---|---|---|---|
-| GET | `/api/v1/reports` | AICTE officer or admin | List saved report definitions | No |
-| POST | `/api/v1/reports` | AICTE officer or admin | Save a report definition | Yes |
-| GET | `/api/v1/reports/{name}?format=csv` | AICTE officer or admin | Run and export. Outside-reader reports leave out identity fields. | Yes |
+| GET | `/api/v1/reports` | AICTE and institution roles (not verifiers) | Catalogue of the six built-in reports | No |
+| POST | `/api/v1/reports` | AICTE and institution roles | Save a report definition (name, report_key, filters), per user. 201 | Yes |
+| GET | `/api/v1/reports/saved` | AICTE and institution roles | The caller's saved definitions | No |
+| GET | `/api/v1/reports/{key}?format=json\|csv&region=&type=&cycle_year=&institution_id=&group_by=` | AICTE and institution roles, scoped | Run and export (`REPORT.EXPORTED` with filters and row count). No report carries a name, date of birth or APAAR ID; duplicate cases carry the masked ID only. | Yes |
 
 ## Consent
 
@@ -162,7 +163,10 @@ Institution users answer flags on their own records. The plan does not say which
 | GET, PUT | `/api/v1/admin/policies` and `/api/v1/admin/policies/{purpose}` | AICTE admin | Purpose policies and their field allow-lists | Yes (writes) |
 | GET, POST, PATCH | `/api/v1/admin/users` | AICTE admin | Users | Yes (writes) |
 | GET, POST, PATCH | `/api/v1/admin/regions` | AICTE admin | Regions | Yes (writes) |
-| GET, POST, PATCH | `/api/v1/admin/windows` | AICTE admin | Submission windows and their ladders | Yes (writes) |
+| GET, POST, PUT | `/api/v1/admin/windows[/{id}]` | AICTE admin | Submission windows and their ladders | Yes (writes) |
+| POST | `/api/v1/admin/windows/run-cycle` | AICTE admin | Run the reminder cycle now (idempotent) | Yes |
+| POST | `/api/v1/admin/anomaly/run` | AICTE admin | Run R09-R12 now | Yes |
+| GET | `/api/v1/regions` | AICTE and institution roles | Regions in scope (officer: own; institution roles: empty) | No |
 | GET, POST | `/api/v1/admin/clock` | AICTE admin | Read or set the clock offset. **BUILT** with POST (plan said PUT). | Yes (writes) |
 | POST | `/api/v1/admin/alert-cycle` | AICTE admin | Run the reminder cycle now | Yes |
 | GET | `/api/v1/admin/audit` | AICTE admin | Read the audit log. **BUILT** at this path. | No |
@@ -198,3 +202,13 @@ Every use of an API key is audited, not only creating and revoking it.
 - `PATCH /records/{id}` (AICTE admin, or admin or staff of that institution) returns `{record, previous, closed_flags, raised_flags}`. See ADR-016. `POST /records/{id}/withdraw` `{reason}` returns the record. See ADR-015.
 - `GET /notifications/unread-count` returns `{count}`.
 - `python -m app.seed --with-flags` runs the real pipeline over the seeded uploads (fresh database only).
+
+
+## Phase 5 notes (built)
+
+- Dashboards and reports read `services/metrics.py`, so their figures are equal (tested). Records counted are current, non-withdrawn rows of the cycle (default: latest programme cycle; `cycle_year` overrides). Institution state: Excess = enrolled above intake plus supernumerary, or an open R06; Alert = other open flags (state not resolved or dismissed); Clear = none.
+- `GET /dashboards/aicte?region=&type=&state=&cycle_year=` returns `{cycle_year, tiles{institutions, records, open_flags, excess, alert, pending_apaar_share}, institutions[]}`. Tiles cover the whole scope; filters narrow the table only.
+- `GET /dashboards/institution[?institution_id=]` (AICTE roles must pass the id) returns `{institution, cycle_year, window, submitted, records{accepted, flagged, pending_apaar}, todo{open_flags, asks, pending_apaar}}`. `todo.pending_apaar` lists record ids and row numbers only.
+- `GET /dashboards/intake-use` and `/dashboards/flags-trend` return `{rows}` for charts. List and dashboard reads are not audited.
+- Reports: `enrolment_vs_intake` (`group_by` programme, institution, programme_type, region), `flags_by_rule_month`, `late_submitters`, `pending_apaar_share`, `duplicate_cases`, `category_counts`. Verifiers get 403.
+- Window ladder steps are `{step, offset_hours (from closes_at), audience: institution|officer|admin}`.
