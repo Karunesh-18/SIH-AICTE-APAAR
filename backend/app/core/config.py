@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     demo_mode: bool = True
     login_max_attempts: int = 10
     bcrypt_rounds: int = 12
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     @model_validator(mode="after")
     def _real_secret_outside_demo(self):
