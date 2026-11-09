@@ -9,7 +9,7 @@ const TONES: Record<Tone, string> = {
   neutral: "bg-muted text-muted-foreground",
 };
 
-function Badge({ meta, label }: { meta: StatusMeta; label: string }) {
+export function ToneBadge({ meta, label }: { meta: StatusMeta; label: string }) {
   const Icon = ICONS[meta.icon];
   return (
     <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${TONES[meta.tone]}`}>
@@ -20,12 +20,12 @@ function Badge({ meta, label }: { meta: StatusMeta; label: string }) {
 }
 
 export const StatusBadge = ({ status, label }: { status: string; label: string }) => (
-  <Badge meta={recordStatus(status)} label={label} />
+  <ToneBadge meta={recordStatus(status)} label={label} />
 );
 export const InstitutionStateBadge = ({ state, label }: { state: string; label: string }) => (
-  <Badge meta={institutionState(state)} label={label} />
+  <ToneBadge meta={institutionState(state)} label={label} />
 );
 
 export const FlagStateBadge = ({ state, label }: { state: string; label: string }) => (
-  <Badge meta={flagState(state)} label={label} />
+  <ToneBadge meta={flagState(state)} label={label} />
 );
