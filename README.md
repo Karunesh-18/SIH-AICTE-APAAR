@@ -12,7 +12,7 @@ Every student record is tied to one APAAR ID. After admissions, an institution u
 
 ## Status
 
-The backend has its Phase 1 foundation built: login, roles, the audit chain with verify, the institutions API, the demo clock and notifications. Everything student-related is still proposed. The frontend has the scaffold and the nav map. Its login page and shell are next.
+The backend has its Phase 1 foundation built: login, roles, the audit chain with verify, the institutions API, the demo clock and notifications. The frontend has the login page, API client, auth context and role-aware shell. The student data tables and a synthetic seed are built. Upload, checks and the review screens are still proposed.
 
 | Part | Status |
 |---|---|
@@ -21,9 +21,11 @@ The backend has its Phase 1 foundation built: login, roles, the audit chain with
 | Institutions API (scoped by role and region) | Built. |
 | Demo clock and in-app notifications, with an outbox | Built. Email is a console stub. |
 | Permission-matrix test over every API route | Built. |
-| Next.js frontend with the role-to-route nav map and its test | Built (scaffold only; the home page is still the starter page) |
+| Next.js frontend with the role-to-route nav map and its test | Built |
 | Test script `scripts/test.ps1` | Built. Green. |
-| Frontend login, API client and role-aware shell | Proposed (next, Phase 1) |
+| Frontend login, API client (one refresh on 401) and role-aware shell | Built. Not yet checked in a browser. |
+| Student, upload, flag, rule and registry tables (migration 0002) | Built. Tests pass. |
+| Synthetic seed (`python -m app.seed`): fictional institutions, demo users, rules, mock registry | Built. Writes no flags. |
 | Region admin, user admin | Proposed |
 | Student upload (CSV, XLSX, XLS, JSON) and the API batch endpoint | Proposed |
 | Rules R01 to R07 on upload | Proposed |
@@ -36,7 +38,7 @@ The backend has its Phase 1 foundation built: login, roles, the audit chain with
 | English and Hindi text | Proposed (the API stores a language per user) |
 | `docker compose up` | Proposed. Written later, **untested** (Docker is not installed on the dev machine). |
 
-Phase 1 of 7 is in progress. The backend is done. See `docs/PROGRESS.md`.
+Phase 1 of 7 is in progress: the backend and the frontend shell are built, and the browser check is open. Phase 2 tables and seed are built. See `docs/PROGRESS.md`.
 
 ## Docs
 - `docs/PLAN.md`: the approved build plan.

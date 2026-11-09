@@ -25,6 +25,8 @@ Last updated: 2026-11-09.
 
 Every built route appears in `backend/tests/test_permission_matrix.py`. A test fails if a new `/api/v1` route is not listed there (ADR-007).
 
+The Phase 1 frontend and the Phase 2 data work added no endpoints. The frontend calls the routes above.
+
 ## Conventions
 
 - Base path: `/api/v1`.
@@ -32,6 +34,7 @@ Every built route appears in `backend/tests/test_permission_matrix.py`. A test f
 - Pydantic v2 models with `extra="forbid"`. Unknown fields are refused.
 - Auth: short-lived access token and a longer refresh token (JWT, HS256). Institutions can also send data with a per-institution API key that has scope `records:submit`.
 - Every route checks the role on the server. Services check the object scope too (see `ROLES.md`).
+- CORS: the API allows only the origins in `cors_origins` (default `http://localhost:3000`). Other origins get no `Access-Control-Allow-Origin` header. Test: `backend/tests/test_health.py`.
 - The API documents itself through the OpenAPI page that FastAPI generates.
 - Status codes and the error body format are not set in the plan.
 

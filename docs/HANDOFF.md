@@ -6,18 +6,26 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`.
 
 ## Where things stand
 
-- **Branch:** `phase-1-foundation`. Open the PR into `dev`. Never commit to `main`.
-- **Phase:** 1 (foundation). Backend done. Frontend login, API client and shell remain.
-- **Verified:** 129 backend tests pass. Ruff is clean. 2 frontend tests pass.
-- **Built in the backend:** scaffold, JWT auth, the hash-chained audit log with verify, institutions API, the demo clock, notifications and the outbox. Each has tests written first. The list is in `API.md` ("Built").
-- **Not built in the frontend:** there is no login page and no API client. `frontend/app/page.tsx` is still the starter page.
-- **Demo data:** none yet. The seed script is Phase 2.
+- **Branches:** `phase-1-frontend` (login, API client, role-aware shell) and `phase-2-student-data` (student models, migration 0002, seed). Both are for PRs into `dev`. These docs do not record whether the PRs are open. Never commit to `main`.
+- **Phase:** 1 (foundation). Backend done. Frontend login, API client and shell built. The browser check and the run check are still open.
+- **Phase 2 (student data):** tables, migration `0002` and the synthetic seed are built. Ingestion and checks are Phase 3.
+- **Verified:** 157 backend tests pass. 12 frontend tests pass (vitest). `next build` passes.
+- **Not verified:** the frontend in a browser, in either theme. The Chrome extension was not connected, so no visual check was done.
+- **Built in the frontend:** `/login` with demo-user buttons, the API client (one refresh and retry on 401), the auth context, the role-aware shell, en and hi text, and placeholder pages at `/aicte`, `/institution` and `/verifier`. The home page sends each role to its first route.
+- **Built in the backend (Phase 1):** scaffold, JWT auth, the hash-chained audit log with verify, institutions API, the demo clock, notifications and the outbox, and CORS limited to `settings.cors_origins` (default `http://localhost:3000`). The list is in `API.md` ("Built").
+- **Built in the backend (Phase 2):** tables `upload`, `student_record`, `validation_flag`, `flag_record`, `flag_event`, `registry_entry`, `rule` and `rule_version`. The seed writes 15 fictional institutions, 5 demo users, 12 rules at version 1, the mock registry and raw records for the demo cases. The seed writes no flags. Phase 3 raises them.
 
 ## Next steps (in order)
 
-1. **Open the PR `phase-1-foundation` into `dev`.** Use `gh pr create --base dev`. Do not merge to `main`.
-2. **Frontend: login, API client and role-aware shell.** Build `frontend/app/login` against `POST /api/v1/auth/login`. Add `frontend/lib/api.ts` as the one API client. Wire the shell to `GET /api/v1/auth/me` and the nav map in `frontend/lib/nav.ts`. Add the first shadcn components with the shell. Show the shell in both themes. Read `frontend/node_modules/next/dist/docs/` first (see `frontend/AGENTS.md`).
-3. **Then Phase 2 (student data).** Write the failing tests first: the seed runs on an empty DB, and the DB rejects a duplicate current record.
+1. **Open the PRs into `dev`.** Use `gh pr create --base dev` for `phase-1-frontend` and for `phase-2-student-data`. Do not merge to `main`.
+2. **Check the frontend in a browser.** Log in with each demo user, check the shell and the placeholder pages in both themes, and record the result. Until this is done, the frontend stays "built, not checked in a browser".
+3. **Phase 3: ingestion and checks.** Write the failing tests first.
+   - Parsers for CSV, XLSX, XLS and JSON. `openpyxl` and `xlrd` are in the install list.
+   - Rules R01 to R07 on upload. R03 reads the `registry_entry` table (the mock).
+   - Duplicate IDs in one file follow ADR-012: the first row stays current, later rows are held with `is_current` false.
+   - The upload UI.
+   - Done when the Kaveri file gives exactly 3 flags covering 8 distinct rows. The seed is built for this count (open question 3). The test checks the seed rows, not the flags, so Phase 3 must still raise the flags.
+   - Read `frontend/node_modules/next/dist/docs/` before using a Next.js API (see `frontend/AGENTS.md`).
 
 ## How to run
 
@@ -41,6 +49,21 @@ To change settings, copy `.env.example` to `.env`. `DEMO_MODE=false` requires a 
 
 Check it: open http://127.0.0.1:8000/health. It should return `{"status": "ok"}`. API docs are at http://127.0.0.1:8000/docs.
 
+### Seed (synthetic demo data)
+
+Migrate first, then seed. The seed needs the tables.
+
+```powershell
+cd backend
+.\.venv\Scripts\python -m alembic upgrade head
+.\.venv\Scripts\python -m app.seed
+```
+
+- To use a database other than `backend/apaar.db`, set `DATABASE_URL` first, for example `$env:DATABASE_URL = "sqlite:///./demo.db"`. Set it for both commands.
+- A plain `app.seed` refuses a database that already has institutions. To empty every table and seed again, run `.\.venv\Scripts\python -m app.seed --reset`.
+- The seed creates 15 fictional institutions, 5 demo users (`admin@`, `officer@`, `inst-admin@`, `staff@` and `verifier@demo.test`, password `Demo@1234`), 12 rules at version 1, the mock registry, and raw records for the demo cases from the idea doc. It writes no flags.
+- Every seeded APAAR ID starts with `9999` (ADR-014).
+
 ### Frontend
 
 ```powershell
@@ -49,7 +72,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. The login page offers the five demo users. Set `NEXT_PUBLIC_DEMO=0` to hide them.
 
 Before using any Next.js API, read `frontend/node_modules/next/dist/docs/` (see `frontend/AGENTS.md`).
 
@@ -68,15 +91,6 @@ cd backend
 .\.venv\Scripts\python -m ruff check .
 ```
 
-### Seed and demo (not built)
-
-```powershell
-cd backend
-.\.venv\Scripts\python -m app.seed --reset
-```
-
-The seed is Phase 2. It does not exist yet.
-
 ### Docker (not built, untested)
 
 `docker compose up` is planned for Phase 7. `docker-compose.yml` is written but has not been run. See ADR-006.
@@ -89,6 +103,8 @@ These are recorded in `PROGRESS.md`. They are not fixed yet.
 - Two concurrent audit appends give HTTP 500 (a unique-key violation with no retry). Add a retry before production.
 - The login rate limit is per email, in memory, per process. It can lock out a known email for 5 minutes.
 - Tests use bcrypt cost 4. Production default is 12.
+- Tokens are kept in `localStorage`. Any script on the page can read them (ADR-013). The client keeps the same refresh token after a refresh.
+- `.env.example` sets `NEXT_PUBLIC_API_URL` to `http://localhost:8000`. The client uses this value as its base URL, and its paths start at `/auth/...`, so the value must include `/api/v1`. Set it to `http://localhost:8000/api/v1`.
 
 ## Open questions
 
@@ -98,7 +114,7 @@ Each question says which phase it blocks.
 |---|---|---|
 | 1 | **R01 wording.** The idea doc says a missing ID is "returned to the institution to fix" and also "held as pending APAAR, not rejected". This repo treats it as a flag plus `pending_apaar` status. Confirm. | Phase 3 |
 | 2 | **Hard stop.** `rule_version.hard_stop` exists in the plan. The idea doc says a hard stop is "AICTE's choice". The advisory rule says the platform never rejects. What does `hard_stop` do? A proposal: it only changes how the upload is shown. It never refuses data. | Phase 3 |
-| 3 | **The 8-row count.** The plan says the Kaveri file gives "exactly 3 flags covering 8 rows". The idea doc's example has 6 excess rows, plus 2 rows for the duplicate ID, plus 1 row for the contradiction. That is 9 rows if none overlap. The count is 8 only if one row is in two flags, and the rows counted are distinct. Confirm the test fixture. | Phase 3 |
+| 3 | **The 8-row count.** The plan says the Kaveri file gives "exactly 3 flags covering 8 rows". The idea doc's example has 6 excess rows, plus 2 rows for the duplicate ID, plus 1 row for the contradiction. That is 9 rows if none overlap. **Resolved.** Seed row 60 has an admission date in 2027. It sorts last by admission date, so it is one of the six over-cap rows. The flags then cover 6 (cap, including row 60) + 2 (duplicate rows 41 and 97) + 1 (future date, the same row 60) = 8 distinct rows. `test_kaveri_future_dated_row_is_among_the_six_over_cap_rows` in `backend/tests/test_seed.py` checks this. | Resolved (Phase 2 seed) |
 | 4 | **Threshold values.** The plan does not set R08's similarity threshold, R10's percentage, R11's percentage, or R12's hours and category share. These are placeholders. | Phases 5 and 7 |
 | 5 | **Audit genesis value.** Answered in code: the first `prev_hash` is 64 zeros (`services/audit.py`). Confirm it is fine for the demo and record it in the plan. | Phase 1 (done in code) |
 | 6 | **Verifier status values.** The plan uses `PENDING`. The other values (approved, rejected) are not written down. | Phase 6 |
@@ -116,7 +132,7 @@ Each question says which phase it blocks.
 | 18 | **Verifier eligibility.** Which organisations may register, and who approves them. (Idea doc section 32.) | Phase 6 |
 | 19 | **Certificate layouts.** Whether degree-awarding bodies will print the APAAR ID on certificates. This depends on them, not on this project. (Idea doc section 10.) | None in code |
 | 20 | **Missing APAAR ID: returned or pending?** The idea doc says a missing ID is both "returned to the institution to fix" and "held as pending APAAR". RULES.md follows "pending". Confirm with the team. | Phase 3 |
-| 21 | **Worked example arithmetic.** The idea doc says 3 flags cover 8 rows. Its parts are 6 (cap) + 2 (duplicate ID) + 1 (future date) = 9, unless one row sits in two flags. Decide which row overlaps, or fix the demo number. | Phase 2 (seed) |
+| 21 | **Worked example arithmetic.** The idea doc says 3 flags cover 8 rows. Its parts are 6 (cap) + 2 (duplicate ID) + 1 (future date) = 9, unless one row sits in two flags. **Resolved.** Row 60 sits in the cap flag and in the future-date flag, as in question 3. The demo number 8 stands. | Resolved (Phase 2 seed) |
 | 22 | **Meaning of `rule_version.hard_stop`.** Under the advisory-only principle its effect is undefined. Decide what it does, or drop it. | Phase 3 |
 | 23 | **R05 alert text.** The alert names the other institution, which may conflict with the masking rules. | Phase 4 |
 

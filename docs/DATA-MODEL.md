@@ -2,12 +2,12 @@
 
 Last updated: 2026-11-09.
 
-Status: Phase 1 tables are built, in one Alembic baseline migration (`backend/migrations/versions/0001_baseline_foundation.py`). Every other table is proposed. The tables below come from `docs/PLAN.md`. Anything added beyond the plan is marked.
+Status: Phase 1 and Phase 2 tables are built, in two Alembic migrations (`backend/migrations/versions/0001_baseline_foundation.py` and `0002_student_data_flags_rules_registry.py`). Every other table is proposed. The tables below come from `docs/PLAN.md`. Anything added beyond the plan is marked. Where a "Built" section gives different columns from the plan's table, the built section wins.
 
 ## Conventions
 
 - Primary keys are UUIDs, except `audit_log`, which uses an integer `id`.
-- Tables carry `created_at` and `updated_at`. Built tables use `IdMixin` and `Base` in `backend/app/db/base.py`, which add the UUID key.
+- Tables built with `IdMixin` in `backend/app/db/base.py` carry `created_at` and `updated_at`, and a UUID key. `flag_record`, `flag_event`, `audit_log` and `system_config` do not carry them.
 - `student_record` and `validation_flag` use `version_id_col` for optimistic locking.
 - Schema must work on SQLite (default) and Postgres.
 - APAAR IDs are normalised (spaces and hyphens removed) before they are stored or compared.
@@ -36,6 +36,26 @@ Differences from the plan's table list:
 - `institution` has `contact_email`, which the plan did not list.
 - `user` has `email`, `password_hash`, `full_name`, `is_active` and `language`. The plan's `user` row said only "login fields".
 - `audit_log` rows are written only by `services/audit.py`. Nothing else writes to the table.
+
+## Built in Phase 2
+
+| Table | Built columns | Built checks and keys |
+|---|---|---|
+| `upload` | institution_id, cycle_year, source, format, file_hash, row_count, accepted_count, flagged_count, status, uploaded_by, error | `source` in FILE, API. `format` in csv, xlsx, xls, json, api. `status` in RECEIVED, PROCESSING, DONE, REJECTED. Indexes on `institution_id` and `file_hash`. The same file sent twice is two uploads with the same hash. |
+| `student_record` | apaar_id (32 characters, nullable, indexed), name, dob, programme_id, cycle_year, year_of_study, admission_date, admission_category, nri, oci, fn, status, version, is_current, superseded_at, superseded_by, withdrawn_reason, continues_record_id, consent_ref, consent_source, upload_id, row_number, lock_version | `status` in submitted, valid, flagged, pending_apaar, withdrawn (`ck_record_status`). `year_of_study` and `version` at least 1. `admission_category` not empty. Partial unique index `uq_record_current` on (apaar_id, programme_id, cycle_year) where `is_current` and `apaar_id` is not null. Optimistic locking through `lock_version`. |
+| `validation_flag` | rule_code, rule_version_id, institution_id, upload_id, reason_key, reason, evidence (JSON), state, assignee_id, lock_version | `state` in open, under_review, resolved, dismissed, ask_institution (default open). Indexes on `rule_code`, `institution_id` and `state`. Optimistic locking through `lock_version`. |
+| `flag_record` | flag_id, record_id | Composite key (flag_id, record_id). Index on `record_id`. |
+| `flag_event` | id, flag_id, from_state, to_state, actor_id, note, at | The history of a flag. Index on `flag_id`. |
+| `rule` | code (4 characters, unique), scope, title | `scope` in upload, cross, scheduled. |
+| `rule_version` | rule_code, version_no, enabled, params (JSON), hard_stop, message_en, message_hi, created_by, note, is_active | Unique (rule_code, version_no). Partial unique index `uq_rule_one_active` on rule_code where `is_active`, so one active version per rule. |
+| `registry_entry` | apaar_id (12 characters, unique), name, dob | The mock registry that R03 reads. It is not the national registry. |
+
+Differences from the plan's table list:
+
+- `student_record.apaar_id` holds the normalised text as submitted, even when malformed, so it is 32 characters wide. The checks flag a bad ID; they never rewrite it.
+- The values of `upload.status` are set in code. The plan does not set them.
+- `flag_event` and `flag_record` have no `created_at` or `updated_at`.
+- Seeded APAAR IDs start with `9999` (ADR-014).
 
 ## Tables
 
@@ -109,18 +129,18 @@ Flag states: `open`, `under_review`, `resolved`, `dismissed`, `ask_institution`.
 
 | Constraint | Where | Why | Source |
 |---|---|---|---|
-| Partial unique index on `(apaar_id, programme_id, cycle_year)` where `is_current` and `apaar_id` is not null | `student_record` | One current record per student, per programme, per cycle. Superseded rows may repeat. Works on SQLite and Postgres. | Plan |
+| Partial unique index on `(apaar_id, programme_id, cycle_year)` where `is_current` and `apaar_id` is not null | `student_record` | One current record per student, per programme, per cycle. Superseded rows may repeat. Works on SQLite and Postgres. | Plan. Built in Phase 2 (`uq_record_current`). |
 | `UNIQUE(window, institution, step)` | `window_alert_log` | A reminder step fires once. A re-run is harmless. | Plan |
 | `UNIQUE(prev_hash)` | `audit_log` | Two writers cannot both extend one entry. Stops the chain from forking. Built. A second concurrent writer gets an IntegrityError (HTTP 500) until a retry is added. | Plan |
-| `version_id_col` (optimistic locking) | `student_record`, `validation_flag` | Two people editing one row cannot overwrite each other silently. | Plan. The idea doc says this is not built yet. |
+| `version_id_col` (optimistic locking) | `student_record`, `validation_flag` | Two people editing one row cannot overwrite each other silently. | Plan. Built in Phase 2 (`lock_version`). |
 | Stores only the hash of an API key | `api_key` | The key cannot be read back. | Plan |
-| `status` is one of submitted, valid, flagged, pending_apaar, withdrawn | `student_record` | Keeps the states to a known set. Enforced in `domain/status.py`. | Plan. A database CHECK is not in the plan. |
+| `status` is one of submitted, valid, flagged, pending_apaar, withdrawn | `student_record` | Keeps the states to a known set. A database CHECK (`ck_record_status`) enforces it. | Plan. The CHECK is built in Phase 2. |
 | A flag state change needs a note | `flag_event` | The reason for each decision is kept. | Plan (service rule), not a database constraint |
 | Edits to rules create a new `rule_version` row | `rule_version` | Rule history is kept. Flags can be traced to the version in force. | Plan |
 | A verifier is `PENDING` until an admin approves or rejects | `verifier` | Only approved verifiers can send requests. | Plan (service rule) |
 | Unknown request fields are rejected | API | Stops silent typos. | Plan (Pydantic `extra="forbid"`), not a database constraint |
 
-Not set in the plan: foreign key delete rules, indexes other than the ones above, and the values allowed in `upload.status`.
+Not set in the plan: foreign key delete rules, and indexes other than the ones above. The values allowed in `upload.status` are set in code (Phase 2).
 
 ## Record lifecycle
 

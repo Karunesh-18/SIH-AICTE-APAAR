@@ -9,7 +9,7 @@ Each record below is an Architecture Decision Record (ADR). The format is:
 - **Decision:** what was decided.
 - **Consequences:** what follows from it, good and bad.
 
-Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling rounds 1 to 3). ADR-007 to ADR-011 come from Phase 1 build work.
+Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling rounds 1 to 3). ADR-007 to ADR-011 come from Phase 1 build work. ADR-012 and ADR-014 come from Phase 2 build work. ADR-013 comes from the Phase 1 frontend.
 
 ## Index
 
@@ -26,6 +26,9 @@ Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling round
 | ADR-009 | Email goes through a transactional outbox | Accepted |
 | ADR-010 | Refused reads of out-of-scope records are audited | Accepted |
 | ADR-011 | Migrations do not import app types | Accepted |
+| ADR-012 | A duplicate ID in one file keeps the first row current | Accepted |
+| ADR-013 | Tokens in localStorage for the prototype | Accepted (prototype only) |
+| ADR-014 | Every seeded APAAR ID starts with 9999 | Accepted |
 
 ---
 
@@ -195,6 +198,55 @@ Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling round
 **Consequences.**
 - Migrations stay runnable after model code changes.
 - Each migration repeats some type details. This is a small cost.
+
+---
+
+## ADR-012: A duplicate ID in one file keeps the first row current
+
+**Status:** Accepted.
+
+**Context.** The database allows one current `student_record` per APAAR ID, programme and cycle (ADR-001, index `uq_record_current`). An upload can list the same ID twice. The idea doc says the platform accepts the data and flags it, and never rejects. If both rows were current, the second insert would fail.
+
+**Decision.**
+- The first row for an ID in a file stays current.
+- Each later row for the same ID is stored with `is_current` false. It is kept, not dropped and not refused.
+- Phase 3 ingestion must follow this. R04 raises the flag for the pair.
+- The seed does this for the Kaveri case: row 41 is current, row 97 has `is_current` false.
+
+**Consequences.**
+- The database rule holds, and the platform still accepts the data.
+- A held duplicate has no `superseded_at` or `superseded_by`. It was not replaced by a newer version, so it is not linked as history. Phase 3 should decide whether a held duplicate links to the current row.
+- Queries for current records must filter on `is_current` (ADR-001).
+
+---
+
+## ADR-013: Tokens in localStorage for the prototype
+
+**Status:** Accepted for the prototype only. Replace before any production use.
+
+**Context.** The API issues a short-lived access token and a longer refresh token (JWT, HS256). The frontend runs on its own origin (`localhost:3000`) and the API on another (`localhost:8000`). A cookie set by the API is not sent from the frontend without a same-origin proxy. Cross-origin cookies also need CSRF handling. For a demo, keeping the tokens in the browser is the simplest working path.
+
+**Decision.** `frontend/lib/api.ts` keeps both tokens in `localStorage` under one key (`waymark.session`). On a 401 the client calls `/auth/refresh` once and retries the request. If the refresh fails, it clears the stored session.
+
+**Consequences.**
+- Any script running on the page can read both tokens. A cross-site scripting bug gives an attacker both tokens.
+- The client keeps the same refresh token after a refresh. A copied refresh token works until it expires (7 days by default, `refresh_days`).
+- Upgrade path: serve the frontend and the API under one origin behind a proxy, and send the tokens in httpOnly cookies. Add CSRF protection for cookie-based requests.
+
+---
+
+## ADR-014: Every seeded APAAR ID starts with 9999
+
+**Status:** Accepted.
+
+**Context.** The repository is public and the demo data must not hold a real student's APAAR ID. The team does not hold the list of real IDs, so no check can rule a clash out. The seed makes a 12-digit ID for each student it creates, and the mock registry holds the same IDs.
+
+**Decision.** Every seeded APAAR ID starts with `9999`, for example `999900001001`. Names are invented. `test_every_seeded_id_is_marked_invented_and_in_registry_with_matching_details` checks the prefix on every 12-digit seeded ID. The 11-digit ID in the Sahyadri case is cut from a seeded ID, so it also starts with `9999`.
+
+**Consequences.**
+- The prefix is a convention. It lowers the chance of a clash with a real ID but does not prove there is none.
+- Nothing outside the seed enforces the prefix. Real data must never be loaded into the demo database.
+- A real registry lookup needs authorisation first (open question 11). Until then R03 reads only the mock `registry_entry` table.
 
 ---
 
