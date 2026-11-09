@@ -24,7 +24,7 @@ function Rules() {
   return (
     <>
       <PageHeader title={t("nav.rules")} description={t("rules.intro")} />
-      <DataTable columns={columns} data={q.data ?? []} loading={q.isPending}
+      <DataTable columns={columns} caption={t("nav.rules")} data={q.data ?? []} loading={q.isPending}
                  error={q.isError ? t(q.error.status === 403 ? "error.forbidden" : "error.generic") : null}
                  onRetry={() => q.refetch()}
                  labels={{ empty: t("rules.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />

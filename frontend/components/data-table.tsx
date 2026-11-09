@@ -7,7 +7,7 @@ import {
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState, ErrorState } from "./states";
 
 const features = tableFeatures({ rowSortingFeature, sortedRowModel: createSortedRowModel(), sortFns });
@@ -24,10 +24,12 @@ type Props<T extends RowData> = {
   error?: string | null;
   onRetry?: () => void;
   paging?: Paging;
+  /** Screen-reader caption naming the table. */
+  caption?: string;
 };
 
 /** Sorting is client-side on the loaded page; paging is server-side (limit/offset). */
-export function DataTable<T extends RowData>({ columns, data, labels, loading, error, onRetry, paging }: Props<T>) {
+export function DataTable<T extends RowData>({ columns, data, labels, loading, error, onRetry, paging, caption }: Props<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const table = useTable({ features, columns, data, state: { sorting }, onSortingChange: setSorting });
 
@@ -38,6 +40,7 @@ export function DataTable<T extends RowData>({ columns, data, labels, loading, e
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto rounded-md border border-border">
         <Table className="tabular-nums">
+          {caption && <TableCaption className="sr-only">{caption}</TableCaption>}
           <TableHeader>
             <TableRow>
               {table.getHeaderGroups()[0]?.headers.map((h) => {

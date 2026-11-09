@@ -51,7 +51,7 @@ function Records() {
           </SelectContent>
         </Select>
       </div>
-      <DataTable
+      <DataTable caption={t("nav.records")}
         columns={columns} data={q.data?.items ?? []} loading={q.isPending && !!id}
         error={q.isError ? t("error.generic") : null} onRetry={() => q.refetch()}
         labels={{ empty: t("record.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }}

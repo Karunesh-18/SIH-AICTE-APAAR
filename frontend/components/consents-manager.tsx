@@ -127,7 +127,7 @@ export function ConsentsManager() {
           <Button type="submit" variant="outline" size="sm">{t("consent.lookupBtn")}</Button>
           {applied && <Button type="button" variant="outline" size="sm" onClick={() => { setApplied(""); setLookup(""); }}>{t("filter.clear")}</Button>}
         </form>
-        <DataTable columns={columns} data={list.data?.items ?? []} loading={list.isPending} onRetry={() => list.refetch()}
+        <DataTable columns={columns} caption={t("nav.consents")} data={list.data?.items ?? []} loading={list.isPending} onRetry={() => list.refetch()}
           error={list.isError ? t(list.error.status === 403 ? "error.forbidden" : "error.generic") : null}
           labels={{ empty: t("consent.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />
       </section>
