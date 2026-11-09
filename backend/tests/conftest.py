@@ -12,6 +12,17 @@ settings.bcrypt_rounds = 4  # tests only: fast hashing
 PASSWORD = "Demo@1234"
 
 
+@pytest.fixture(autouse=True)
+def _isolated_signing_key_and_limits(tmp_path):
+    """Each test signs with its own throwaway key, and no rate-limit state leaks between tests."""
+    from app.services import ratelimit, signing
+
+    settings.verify_key_path = str(tmp_path / "verify_key.pem")
+    signing.reset()
+    ratelimit.reset()
+    yield
+
+
 @pytest.fixture
 def db():
     engine = create_engine(

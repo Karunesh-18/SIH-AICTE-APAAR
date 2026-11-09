@@ -258,3 +258,14 @@ def test_policy_validation_and_access(client, login, s):
         h = login(who)
         assert client.put(f"{P}/EMPLOYMENT", headers=h, json=ok).status_code == 403
         assert client.get(P, headers=h).status_code == 403
+
+
+def test_register_hashes_the_password_even_when_the_email_exists(client, monkeypatch):
+    """No timing difference between a new and an existing email."""
+    from app.services import verifiers as svc
+    calls = []
+    real = svc.hash_password
+    monkeypatch.setattr(svc, "hash_password", lambda p: calls.append(1) or real(p))
+    client.post(R, json=REG)
+    client.post(R, json=REG)
+    assert len(calls) == 2

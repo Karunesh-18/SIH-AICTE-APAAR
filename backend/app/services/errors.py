@@ -15,3 +15,7 @@ class Conflict(Exception):
 
 class Invalid(Exception):
     pass
+
+
+class RateLimited(Exception):
+    pass

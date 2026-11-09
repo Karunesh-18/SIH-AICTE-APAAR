@@ -57,3 +57,16 @@ def refuse(db: Session, user: User | None, entity_type: str, entity_id: str, **a
         audit.append(db, actor_id=user.id if user else None,
                      actor_role=user.role if user else "API_KEY", action="ACCESS.REFUSED",
                      entity_type=entity_type, entity_id=entity_id, after=after or None)
+
+
+def fail(db: Session, user: User | None, err: Exception, entity_type: str, entity_id: str):
+    """Map a use-case error to HTTP. A scope failure is audited as a refusal, then 403."""
+    from app.services import errors as E
+
+    if isinstance(err, E.Forbidden):
+        refuse(db, user, entity_type, entity_id)
+        return HTTPException(403, str(err) or "Not allowed")
+    code = {E.NotFound: 404, E.Conflict: 409, E.Invalid: 422, E.RateLimited: 429}.get(type(err))
+    if code is None:
+        raise err
+    return HTTPException(code, str(err))

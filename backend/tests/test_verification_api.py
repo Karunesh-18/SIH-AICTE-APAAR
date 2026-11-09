@@ -181,7 +181,7 @@ def test_user_without_a_verifier_record_gets_403(client, db, login, world, s):
 def test_unknown_id_and_missing_consent_look_the_same_to_the_verifier(client, db, vh):
     unknown = refused(client, vh, "999999999999")
     no_consent = refused(client, vh, ap(2))
-    strip = lambda b: {k: v for k, v in b.items() if k != "id"}  # noqa: E731
+    strip = lambda b: {k: v for k, v in b.items() if k != "id"}
     assert strip(unknown) == strip(no_consent)
     # the precise reason is kept in the audit log, not in the verifier's view
     after = [a.after for a in db.scalars(select(AuditLog).where(
@@ -258,7 +258,7 @@ def test_expired_token(client, token):
 def test_token_expiry_boundary(client, token):
     exp = signing.decode_unverified(token)["exp"]
     from datetime import UTC, datetime
-    at = lambda sec: datetime.fromtimestamp(sec, UTC)  # noqa: E731
+    at = lambda sec: datetime.fromtimestamp(sec, UTC)
     base = clock.now()
     clock.set_offset((at(exp) - base).total_seconds() - 5)
     try:
@@ -279,7 +279,7 @@ def test_revoked_token(client, db, login, vh, token):
 
 
 def test_alg_none_is_rejected(client, token):
-    head, payload, _ = token.split(".")
+    _, payload, _ = token.split(".")
     h = b64(json.dumps({"alg": "none", "typ": "JWT"}).encode())
     assert check(client, f"{h}.{payload}.").json()["status"] == "TAMPERED"
     assert check(client, f"{h}.{payload}").json()["status"] == "TAMPERED"
@@ -386,6 +386,13 @@ def test_history_is_scoped(client, db, login, vh, world):
     assert len(client.get(V, headers=login("admin@demo.test")).json()["items"]) == 2
     south = client.get(V, headers=login("officer.south@demo.test")).json()["items"]
     assert len(south) == 1  # Northfield is in the North region
-    other_inst = [i for i in mine if i["id"] not in {k["id"] for k in kav}][0]["id"]
+    other_inst = next(i for i in mine if i["id"] not in {k["id"] for k in kav})["id"]
     assert client.get(f"{V}/{other_inst}", headers=login("kaveri.admin@demo.test")
                       ).status_code == 403
+
+
+def test_verifier_approved_for_one_purpose_cannot_ask_for_another(client, db, vh):
+    give(db, ap(2), purposes=("SCHOLARSHIP",), fields=("name", "programme", "status"))
+    r = ask(client, vh, ap(2), purpose="SCHOLARSHIP")  # the demo verifier asked for EMPLOYMENT only
+    assert r.json()["outcome"] == "REFUSED" and r.json()["reason"] == "VERIFIER_NOT_APPROVED"
+    assert db.scalars(select(VerificationRequest)).one().refusal_reason == "VERIFIER_NOT_APPROVED"

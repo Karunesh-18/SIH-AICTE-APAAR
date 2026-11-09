@@ -3,7 +3,6 @@ import pytest
 from sqlalchemy import select
 
 from app.models.consent import Consent, PurposePolicy, Verifier
-from app.models.user import User
 from app.seed import seed, seed_demo_flags, seed_demo_verification, seed_policies
 
 
