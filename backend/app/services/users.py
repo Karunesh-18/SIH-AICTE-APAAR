@@ -11,7 +11,7 @@ from app.db.session import uow
 from app.models.enums import INSTITUTION_ROLES, Role
 from app.models.org import Institution, Region
 from app.models.user import User, UserRegion
-from app.services import audit
+from app.services import audit, sessions
 from app.services.errors import Conflict, Invalid, NotFound
 
 MIN_PASSWORD = 10
@@ -163,6 +163,7 @@ def reset_password(db: Session, actor: User, user_id: str, *,
     temp = new_temporary_password()
     with uow(db):
         u.password_hash = hash_password(temp)
+        sessions.revoke_user(db, u.id)
         audit.append(db, actor_id=actor.id, actor_role=actor.role, action="USER.PASSWORD_RESET",
                      entity_type="user", entity_id=u.id, after={"email": u.email})
     return u, temp

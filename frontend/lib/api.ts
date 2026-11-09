@@ -37,24 +37,33 @@ export function browserStore(): TokenStore {
 type Opts = { baseUrl: string; fetchFn?: typeof fetch; store: TokenStore };
 
 export function createApi({ baseUrl, fetchFn = (...a) => fetch(...a), store }: Opts) {
-  async function raw(path: string, method: string, body?: unknown, auth = true) {
+  async function raw(path: string, method: string, body?: unknown, auth = true, keepalive = false) {
     const headers: Record<string, string> = {};
     if (body !== undefined && !(body instanceof FormData)) headers["Content-Type"] = "application/json";
     const token = store.get().access;
     if (auth && token) headers.Authorization = `Bearer ${token}`;
     return fetchFn(baseUrl + path, {
       method,
+      keepalive,
       headers,
       body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     });
   }
 
-  async function refresh(): Promise<boolean> {
+  // One refresh in flight per tab: the refresh token is single-use, so a second call would be a replay.
+  let inflight: Promise<boolean> | null = null;
+  function refresh(): Promise<boolean> {
+    inflight ??= doRefresh().finally(() => (inflight = null));
+    return inflight;
+  }
+
+  async function doRefresh(): Promise<boolean> {
     const { refresh: rt } = store.get();
     if (!rt) return false;
     const res = await raw("/auth/refresh", "POST", { refresh_token: rt }, false);
     if (!res.ok) return false;
-    store.set({ access: (await res.json()).access_token, refresh: rt });
+    const j = await res.json();
+    store.set({ access: j.access_token, refresh: j.refresh_token ?? rt });
     return true;
   }
 
@@ -92,7 +101,12 @@ export function createApi({ baseUrl, fetchFn = (...a) => fetch(...a), store }: O
       const j = await res.json();
       store.set({ access: j.access_token, refresh: j.refresh_token });
     },
-    logout: () => store.set({ access: null, refresh: null }),
+    logout() {
+      const { refresh: rt } = store.get();
+      store.set({ access: null, refresh: null });
+      // Best effort: revokes the session server-side; the user is signed out locally either way.
+      if (rt) void raw("/auth/logout", "POST", { refresh_token: rt }, false, true).catch(() => undefined);
+    },
     hasSession: () => !!store.get().access,
   };
 }
