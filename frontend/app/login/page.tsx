@@ -5,10 +5,11 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LangSwitch } from "@/components/lang-switch";
+import { SkipLink } from "@/components/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { t } from "@/lib/i18n";
 import { homeFor } from "@/lib/nav";
 
 const DEMO = [
@@ -21,7 +22,7 @@ const DEMO = [
 const DEMO_PASSWORD = "Demo@1234";
 
 export default function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn, t } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,20 +46,21 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
+    <main id="main" className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
+      <SkipLink />
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t("en", "app.name")}</h1>
-        <ThemeToggle />
+        <h1 className="text-xl font-semibold">{t("app.name")}</h1>
+        <span className="flex gap-2"><LangSwitch /><ThemeToggle /></span>
       </div>
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-        <h2 className="text-base font-medium">{t("en", "auth.title")}</h2>
+        <h2 className="text-base font-medium">{t("auth.title")}</h2>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="email">{t("en", "auth.email")}</Label>
+          <Label htmlFor="email">{t("auth.email")}</Label>
           <Input id="email" type="email" autoComplete="username" required value={email}
                  onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="password">{t("en", "auth.password")}</Label>
+          <Label htmlFor="password">{t("auth.password")}</Label>
           <Input id="password" type="password" autoComplete="current-password" required value={password}
                  onChange={(e) => setPassword(e.target.value)} />
         </div>
@@ -68,16 +70,16 @@ export default function LoginPage() {
           </p>
         )}
         <Button type="submit" disabled={busy || !email || !password}>
-          {busy ? t("en", "auth.signingIn") : t("en", "auth.submit")}
+          {busy ? t("auth.signingIn") : t("auth.submit")}
         </Button>
       </form>
-      <Link href="/verifiers/register" className="w-fit text-sm underline underline-offset-4">{t("en", "reg.link")}</Link>
+      <Link href="/verifiers/register" className="w-fit text-sm underline underline-offset-4">{t("reg.link")}</Link>
       {showDemo && (
         <section aria-labelledby="demo" className="border-t border-border pt-4">
           <h2 id="demo" className="text-sm font-medium">
-            {t("en", "auth.demo")}
+            {t("auth.demo")}
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground">{t("en", "auth.demoHint")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("auth.demoHint")}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {DEMO.map(([label, mail]) => (
               <Button key={mail} type="button" variant="outline" size="sm"
@@ -88,7 +90,7 @@ export default function LoginPage() {
           </div>
         </section>
       )}
-      <p className="text-xs text-muted-foreground">{t("en", "app.notice")}</p>
+      <p className="text-xs text-muted-foreground">{t("app.notice")}</p>
     </main>
   );
 }

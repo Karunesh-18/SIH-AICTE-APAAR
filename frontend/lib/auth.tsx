@@ -1,9 +1,10 @@
 "use client";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { api } from "./api";
 import type { Lang } from "./i18n";
 import { t as translate } from "./i18n";
+import { readLocalLang, subscribeLang, resolveLang, writeLocalLang } from "./lang";
 import type { Role } from "./nav";
 
 export type Me = {
@@ -20,6 +21,8 @@ type Ctx = {
   loading: boolean;
   signIn(email: string, password: string): Promise<Me>;
   signOut(): void;
+  lang: Lang;
+  setLang(l: Lang): void;
   t(key: string): string;
 };
 const AuthCtx = createContext<Ctx | null>(null);
@@ -31,6 +34,10 @@ function Inner({ children }: { children: ReactNode }) {
   const enabled = typeof window !== "undefined" && api.hasSession();
   const me = useQuery({ queryKey: ["me"], enabled, retry: false, staleTime: 60_000, queryFn: fetchMe });
   const user = me.isError ? null : (me.data ?? null);
+  // Server snapshot is null, so server and first client render agree; the stored choice applies after hydration.
+  const local = useSyncExternalStore(subscribeLang, readLocalLang, () => null);
+  const lang = resolveLang(user?.language, local);
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   const value: Ctx = {
     user,
     loading: enabled && me.isPending,
@@ -44,7 +51,15 @@ function Inner({ children }: { children: ReactNode }) {
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload drops all in-memory state
       window.location.assign("/login");
     },
-    t: (key) => translate(user?.language ?? "en", key),
+    lang,
+    setLang(l) {
+      writeLocalLang(l);
+      if (user) {
+        qc.setQueryData<Me>(["me"], { ...user, language: l });
+        api.patch<Me>("/auth/me", { language: l }).catch(() => undefined); // choice still applies locally
+      }
+    },
+    t: (key) => translate(lang, key),
   };
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }

@@ -1,6 +1,8 @@
 "use client";
 import { useState, type ReactNode } from "react";
 import { Check, Copy } from "lucide-react";
+import { SkipLink } from "@/components/skip-link";
+import { LangSwitch } from "@/components/lang-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -57,11 +59,12 @@ export function PublicFrame({ children }: { children: ReactNode }) {
   const { t } = useAuth();
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-6 px-4 py-6">
+      <SkipLink />
       <header className="flex items-center justify-between">
         <p className="font-semibold">{t("app.name")}</p>
-        <ThemeToggle />
+        <span className="flex gap-2"><LangSwitch /><ThemeToggle /></span>
       </header>
-      <main className="flex flex-1 flex-col gap-6">{children}</main>
+      <main id="main" className="flex flex-1 flex-col gap-6">{children}</main>
       <footer className="border-t border-border pt-4 text-xs text-muted-foreground">{t("verify.notice")}</footer>
     </div>
   );
