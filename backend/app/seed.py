@@ -387,10 +387,22 @@ def seed_demo_verification(db: Session) -> None:
     db.commit()
 
 
-if __name__ == "__main__":
-    from app.db.session import SessionLocal
+def seed_demo(db: Session) -> None:
+    """The whole demo in one call: empty every table, seed, run the checks, add the submission
+    window and the verification scene. Deterministic apart from ids and timestamps."""
+    from app.core import clock
 
+    seed(db, reset=True)
+    clock.set_offset(0)  # the saved offset went with the reset
+    seed_demo_flags(db)
+    seed_demo_windows(db)
+    seed_demo_verification(db)
+
+
+def main(argv: list[str] | None = None, session_factory=None) -> None:
     ap = argparse.ArgumentParser(description="Seed synthetic demo data")
+    ap.add_argument("--demo", action="store_true",
+                    help="one command: reset, base seed, flags, windows and verification")
     ap.add_argument("--reset", action="store_true", help="delete everything first")
     ap.add_argument("--with-flags", action="store_true",
                     help="then run the checks over the seeded uploads so real flags exist")
@@ -399,13 +411,22 @@ if __name__ == "__main__":
                          "(needs --with-flags)")
     ap.add_argument("--with-verification", action="store_true",
                     help="then add an approved and a pending verifier and sample consents")
-    args = ap.parse_args()
-    with SessionLocal() as session:
-        seed(session, reset=args.reset)
-        if args.with_flags:
-            seed_demo_flags(session)
-        if args.with_windows:
-            seed_demo_windows(session)
-        if args.with_verification:
-            seed_demo_verification(session)
+    args = ap.parse_args(argv)
+    if session_factory is None:
+        from app.db.session import SessionLocal as session_factory
+    with session_factory() as session:
+        if args.demo:
+            seed_demo(session)
+        else:
+            seed(session, reset=args.reset)
+            if args.with_flags:
+                seed_demo_flags(session)
+            if args.with_windows:
+                seed_demo_windows(session)
+            if args.with_verification:
+                seed_demo_verification(session)
     print("Seeded. Demo users: *@demo.test, password", DEMO_PASSWORD)
+
+
+if __name__ == "__main__":
+    main()
