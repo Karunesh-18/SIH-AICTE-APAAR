@@ -1,8 +1,11 @@
+"use client";
+import { AicteDashboardView } from "@/components/aicte-dashboard";
+import { RoleGuard } from "@/components/role-guard";
+
 export default function Page() {
   return (
-    <>
-      <h1 className="text-xl font-semibold">Dashboard</h1>
-      <p className="mt-2 text-muted-foreground">This screen is built in a later phase.</p>
-    </>
+    <RoleGuard roles={["AICTE_ADMIN", "AICTE_OFFICER"]}>
+      <AicteDashboardView />
+    </RoleGuard>
   );
 }

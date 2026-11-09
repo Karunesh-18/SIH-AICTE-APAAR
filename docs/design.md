@@ -12,7 +12,7 @@ Student-level data submission, validation, monitoring and consent-based verifica
 | Frontend API client, auth context and role-aware shell | Built. Tokens in `localStorage` (prototype only, ADR-013). |
 | Hash-chained audit log with verify and tamper demo | Built (backend) |
 | Institution registry (institutions API and models), region model | Built (backend). Region and user admin proposed. |
-| Obligation and alert engine, compliance dashboard | Proposed |
+| Submission windows, reminder ladder, compliance dashboards, reports (backend and screens, Phase 5) | Built. Screens not checked in a browser. Charts use the validated palette in `app/globals.css` (light on #ffffff, dark on #1c2027); light slots 3 to 5 are under 3:1 so every chart has direct labels and a table view. |
 | Notifications (in-app, with a transactional outbox) | Built (backend). Email is a console stub. |
 | Demo clock (advance and reset) | Built (backend) |
 | Student, flag, rule and registry tables; synthetic seed | Built (tables and seed). No ingestion or checks yet. |

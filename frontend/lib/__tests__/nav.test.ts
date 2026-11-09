@@ -10,3 +10,11 @@ describe("navFor", () => {
     expect(navFor("AICTE_OFFICER").some((n) => n.href === "/admin/rules")).toBe(false);
   });
 });
+
+describe("reports nav", () => {
+  it("is offered to AICTE and institution roles but not verifiers", () => {
+    for (const r of ["AICTE_ADMIN", "AICTE_OFFICER", "INSTITUTION_ADMIN", "INSTITUTION_STAFF"] as const)
+      expect(navFor(r).some((n) => n.href === "/reports")).toBe(true);
+    expect(navFor("VERIFIER").some((n) => n.href === "/reports")).toBe(false);
+  });
+});

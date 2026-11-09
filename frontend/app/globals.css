@@ -82,12 +82,19 @@
   --status-alert-bg: oklch(0.96 0.06 85);
   --status-excess: oklch(0.47 0.18 27);
   --status-excess-bg: oklch(0.95 0.035 27);
-  /* Categorical series, provisional: validated in the dataviz pass. */
-  --chart-1: oklch(0.5 0.1 192);
-  --chart-2: oklch(0.62 0.14 75);
-  --chart-3: oklch(0.5 0.15 280);
-  --chart-4: oklch(0.58 0.16 10);
-  --chart-5: oklch(0.55 0.03 245);
+  /* Chart series: dataviz reference palette, fixed slot order, validated (validate_palette.js)
+     light on #ffffff: all gates pass, worst adjacent CVD dE 9.1; slots 3,4,5 are under 3:1 so
+     every chart ships direct labels and a table view. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #6250d6;
+  --chart-8: #e34948;
+  --chart-other: #6b7280;
+  --chart-track: oklch(0.93 0.008 230);
   --radius: 0.375rem;
   --sidebar: oklch(0.965 0.006 230);
   --sidebar-foreground: oklch(0.25 0.02 245);
@@ -124,11 +131,17 @@
   --status-alert-bg: oklch(0.32 0.05 80);
   --status-excess: oklch(0.74 0.15 27);
   --status-excess-bg: oklch(0.31 0.06 27);
-  --chart-1: oklch(0.74 0.1 192);
-  --chart-2: oklch(0.8 0.13 80);
-  --chart-3: oklch(0.72 0.12 285);
-  --chart-4: oklch(0.74 0.13 10);
-  --chart-5: oklch(0.7 0.02 240);
+  /* dark on #1c2027: all gates pass incl. 3:1 contrast, worst adjacent CVD dE 8.4. */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+  --chart-other: #9ca3af;
+  --chart-track: oklch(0.3 0.016 245);
   --sidebar: oklch(0.21 0.016 245);
   --sidebar-foreground: oklch(0.94 0.008 230);
   --sidebar-primary: oklch(0.72 0.1 192);
