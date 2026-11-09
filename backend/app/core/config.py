@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     access_minutes: int = 30
     refresh_days: int = 7
     demo_mode: bool = True
+    scheduler: bool = False  # SCHEDULER=1 starts the window cycle even in demo mode
+    scheduler_minutes: int = 15
     login_max_attempts: int = 10
     bcrypt_rounds: int = 12
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]

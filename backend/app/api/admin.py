@@ -1,3 +1,6 @@
+from datetime import UTC, datetime
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import field_validator, model_validator
 from sqlalchemy import func, select
@@ -11,7 +14,8 @@ from app.db.session import get_db, uow
 from app.models.audit import AuditLog
 from app.models.enums import Role
 from app.models.user import User
-from app.services import audit, clock_admin, rules_admin
+from app.services import anomaly, audit, clock_admin, rules_admin, windows
+from app.services.errors import NotFound
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 admin_only = require_roles(Role.AICTE_ADMIN)
@@ -139,3 +143,59 @@ def update_rule(code: str, body: RuleUpdateIn, user: User = Depends(admin_only),
 def revert_rule(code: str, body: RevertIn, user: User = Depends(admin_only),
                 db: Session = Depends(get_db)):
     return _version_out(_guard(rules_admin.revert, db, user, code, body.to_version, body.note))
+
+
+# ---- submission windows and scheduled rules -----------------------------------------------------
+
+class LadderStep(Strict):
+    step: str
+    offset_hours: int
+    audience: Literal["institution", "officer", "admin"] = "institution"
+
+
+class WindowIn(Strict):
+    cycle_year: int
+    institution_type: Literal["ENGINEERING", "MANAGEMENT", "PHARMACY", "OTHER"] | None = None
+    opens_at: datetime
+    closes_at: datetime
+    ladder: list[LadderStep]
+
+    @model_validator(mode="after")
+    def _valid(self):
+        self.opens_at, self.closes_at = (
+            d if d.tzinfo else d.replace(tzinfo=UTC) for d in (self.opens_at, self.closes_at))
+        if self.closes_at <= self.opens_at:
+            raise ValueError("closes_at must be after opens_at")
+        if len({s.step for s in self.ladder}) != len(self.ladder):
+            raise ValueError("ladder step names must be unique")
+        return self
+
+
+@router.get("/windows")
+def list_windows(_: User = Depends(admin_only), db: Session = Depends(get_db)):
+    return [windows.window_out(w) for w in windows.list_windows(db)]
+
+
+@router.post("/windows", status_code=201)
+def create_window(body: WindowIn, user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    return windows.window_out(windows.save(db, user, body.model_dump()))
+
+
+@router.put("/windows/{window_id}")
+def update_window(window_id: str, body: WindowIn, user: User = Depends(admin_only),
+                  db: Session = Depends(get_db)):
+    try:
+        return windows.window_out(windows.save(db, user, body.model_dump(), window_id))
+    except NotFound as e:
+        raise HTTPException(404, str(e)) from None
+
+
+@router.post("/windows/run-cycle")
+def run_cycle(user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    return windows.run_cycle(db, actor=user)
+
+
+@router.post("/anomaly/run")
+def run_anomaly(user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    raised = anomaly.run_all(db, clock.now(), user)
+    return {"raised": len(raised), "flags": [{"id": f.id, "rule": f.rule_code} for f in raised]}
