@@ -32,6 +32,16 @@ def test_other_demo_cases_and_uploads_done(demo):
     assert demo.scalar(select(func.count()).select_from(Upload)) == 15
 
 
+def test_narmada_near_duplicate_pair_raises_exactly_one_r08(demo):
+    flags = demo.scalars(select(ValidationFlag).where(ValidationFlag.rule_code == "R08")).all()
+    assert len(flags) == 1
+    f = flags[0]
+    assert demo.get(Institution, f.institution_id).name == "Narmada School of Management"
+    assert f.evidence["score"] >= f.evidence["threshold"] == 0.85
+    assert {f.evidence["a"]["name"], f.evidence["b"]["name"]} == {
+        "Priyanka Deshmukh", "Priyanka Deshmuk"}
+
+
 def test_refuses_to_run_twice(demo):
     with pytest.raises(RuntimeError):
         seed_demo_flags(demo)

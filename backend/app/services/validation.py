@@ -3,7 +3,7 @@ it never changes, rejects or penalises a record. Every flag names its rule versi
 from collections import defaultdict
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.adapters.registry import RegistryAdapter
@@ -22,7 +22,7 @@ from app.models.student import (
 from app.models.user import User, UserRegion
 from app.services import audit, notify
 
-OFFICER_RULES = {"R05", "R06"}
+OFFICER_RULES = {"R05", "R06", "R08"}
 
 
 class _Fmt(dict):
@@ -51,6 +51,8 @@ def _evidence_text(ev: dict) -> str:
         if k == "elsewhere":
             parts.append("also listed at " + "; ".join(
                 f"{e['institution']} ({e['programme']}, admitted {e['admission_date']})" for e in v))
+        elif k in ("a", "b"):
+            continue  # R08 sides carry names; the sentence shows masked ids only
         elif k == "this":
             parts.append(f"here: {v['programme']}, admitted {v['admission_date']}")
         elif not isinstance(v, dict | list):
@@ -87,6 +89,39 @@ def _elsewhere(db: Session, cycle_year: int, institution_id: str, ids: set[str])
                                     "admission_date": rec.admission_date.isoformat()})
         inst_ids.add(inst.id)
     return found, inst_ids
+
+
+def _person(rec: StudentRecord, row_number: int | None, inst: Institution) -> R.Person:
+    return R.Person(ref=rec.id, apaar_id=rec.apaar_id, name=rec.name,
+                    dob=None if rec.dob == date.min else rec.dob, row_number=row_number,
+                    institution_id=inst.id, institution=inst.name)
+
+
+def _stored_people(db: Session, cycle_year: int, dobs: set, skip_upload: str | None,
+                   skip_record: str | None = None) -> list[R.Person]:
+    """Current, non-withdrawn records of the cycle born on one of these dates, at any institution."""
+    if not dobs:
+        return []
+    q = (select(StudentRecord, Institution)
+         .join(Programme, StudentRecord.programme_id == Programme.id)
+         .join(Institution, Programme.institution_id == Institution.id)
+         .where(StudentRecord.is_current, StudentRecord.cycle_year == cycle_year,
+                StudentRecord.status != "withdrawn", StudentRecord.dob.in_(dobs)))
+    if skip_upload:
+        q = q.where(or_(StudentRecord.upload_id.is_(None), StudentRecord.upload_id != skip_upload))
+    if skip_record:
+        q = q.where(StudentRecord.id != skip_record)
+    return [_person(r, None, i) for r, i in db.execute(q)]
+
+
+def _record_ids(d: R.FlagDraft, by_row: dict[int, StudentRecord], institution_id: str) -> list[str]:
+    """The rows of this upload, plus (R08) an earlier record of the same institution. A record of
+    another institution stays evidence only, so its details are never shown as this flag's own."""
+    ids = [by_row[n].id for n in d.row_numbers]
+    if d.rule == "R08":
+        ids += [s["record_id"] for s in (d.evidence["a"], d.evidence["b"])
+                if s["row_number"] is None and s["institution_id"] == institution_id]
+    return ids
 
 
 def _r05(rows: list[R.Row], others: dict, prog: Programme) -> list[R.FlagDraft]:
@@ -134,11 +169,18 @@ def validate(db: Session, up: Upload, parsed: list[R.Row], records: dict[int, St
         if (p := active("R07")) is not None:
             drafts += R.r07_fields(rows, up.cycle_year, p)
 
+    if (p := active("R08")) is not None:
+        inst_of = {i.id: i for i in db.scalars(select(Institution))}
+        mine = [_person(records[r.row_number], r.row_number, inst_of[up.institution_id])
+                for r in parsed if records[r.row_number].is_current]
+        drafts += R.r08_near_duplicate(
+            mine + _stored_people(db, up.cycle_year, {m.dob for m in mine if m.dob}, up.id), p)
+
     touched: set[int] = set()
     raised = []
     for d in drafts:
         raised.append(_persist(db, d, versions[d.rule], up.institution_id, up.id,
-                               [records[n].id for n in d.row_numbers]))
+                               _record_ids(d, records, up.institution_id)))
         touched.update(d.row_numbers)
 
     for n, rec in records.items():
@@ -212,7 +254,16 @@ def recheck_record(db: Session, rec: StudentRecord, prog: Programme, registry: R
         drafts += _r05(rows, others, prog)
     if (v := versions.get("R07")) is not None:
         drafts += R.r07_fields(rows, rec.cycle_year, v.params)
-    raised = [_persist(db, d, versions[d.rule], prog.institution_id, rec.upload_id, [rec.id])
+    if (v := versions.get("R08")) is not None and rec.is_current and rec.dob != date.min:
+        inst = db.get(Institution, prog.institution_id)
+        drafts += [d for d in R.r08_near_duplicate(
+            [_person(rec, rec.row_number or 1, inst)]
+            + _stored_people(db, rec.cycle_year, {rec.dob}, None, skip_record=rec.id), v.params)
+            if not _known_pair(db, prog.institution_id, rec, d)]
+    raised = [_persist(db, d, versions[d.rule], prog.institution_id, rec.upload_id,
+                       [rec.id] + [s["record_id"] for s in (d.evidence.get("a"), d.evidence.get("b"))
+                                   if s and s["row_number"] is None
+                                   and s["institution_id"] == prog.institution_id])
               for d in drafts]
     for f in raised:
         audit.append(db, actor_id=actor.id, actor_role=actor.role, action="FLAG.RAISED",
@@ -220,3 +271,17 @@ def recheck_record(db: Session, rec: StudentRecord, prog: Programme, registry: R
                      after={"rule": f.rule_code, "rule_version_id": f.rule_version_id,
                             "reason_key": f.reason_key, "record_id": rec.id})
     return raised
+
+
+def _known_pair(db: Session, institution_id: str, rec: StudentRecord, d: R.FlagDraft) -> bool:
+    """True when an R08 flag (in any state, a dismissal included) already covers this pair, either
+    for this record or for the version it replaces."""
+    mine = {rec.id, rec.continues_record_id}
+    other = next(s["record_id"] for s in (d.evidence["a"], d.evidence["b"])
+                 if s["record_id"] != rec.id)
+    for f in db.scalars(select(ValidationFlag).where(
+            ValidationFlag.rule_code == "R08", ValidationFlag.institution_id == institution_id)):
+        ids = {f.evidence["a"]["record_id"], f.evidence["b"]["record_id"]}
+        if other in ids and ids & mine:
+            return True
+    return False

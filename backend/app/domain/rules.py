@@ -6,9 +6,9 @@ from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date
-from difflib import SequenceMatcher
 
-from app.domain.apaar import check_format
+from app.domain.apaar import check_format, mask
+from app.domain.similarity import similarity
 
 
 @dataclass(frozen=True)
@@ -55,14 +55,8 @@ def r02_format(rows: list[Row], params: Mapping) -> list[FlagDraft]:
     ]
 
 
-def _similarity(a: str, b: str) -> float:
-    norm = lambda s: " ".join(s.lower().split())
-    return SequenceMatcher(None, norm(a), norm(b)).ratio()
-
-
 def r03_registry(rows: list[Row], params: Mapping,
                  lookup: Callable[[str], RegistryInfo | None]) -> list[FlagDraft]:
-    # ponytail: difflib ratio; R08 brings TF-IDF and a shared similarity module.
     threshold = params.get("name_threshold", 0.8)
     out = []
     for r in rows:
@@ -72,7 +66,7 @@ def r03_registry(rows: list[Row], params: Mapping,
         if hit is None:
             out.append(FlagDraft("R03", "registry_not_found", [r.row_number],
                                  {"apaar_id": r.apaar_id}))
-        elif r.name and (sim := _similarity(r.name, hit.name)) < threshold:
+        elif r.name and (sim := similarity(r.name, hit.name)) < threshold:
             out.append(FlagDraft("R03", "registry_name_differs", [r.row_number],
                                  {"submitted": r.name, "registry": hit.name,
                                   "similarity": round(sim, 2), "threshold": threshold}))
@@ -134,4 +128,49 @@ def r07_fields(rows: list[Row], cycle_year: int, params: Mapping) -> list[FlagDr
             if key == "admission_after_cycle":
                 ev["cycle_year"] = cycle_year
             out.append(FlagDraft("R07", key, [r.row_number], ev))
+    return out
+
+
+@dataclass(frozen=True)
+class Person:
+    """One side of a possible near-duplicate. row_number is set for rows of the upload being
+    checked and None for records already stored."""
+    ref: str
+    apaar_id: str | None
+    name: str
+    dob: date | None
+    row_number: int | None
+    institution_id: str
+    institution: str
+
+
+def _side(x: Person) -> dict:
+    return {"record_id": x.ref, "apaar_id": mask(x.apaar_id), "name": x.name,
+            "institution_id": x.institution_id, "institution": x.institution,
+            "row_number": x.row_number}
+
+
+def r08_near_duplicate(people: list[Person], params: Mapping) -> list[FlagDraft]:
+    """Same date of birth, similar name, different or missing APAAR IDs. Each pair once; a pair
+    of two stored records is skipped because it is not new."""
+    threshold = params.get("threshold", 0.85)
+    by_dob: dict[date, list[Person]] = defaultdict(list)
+    for x in people:
+        if x.dob and x.dob != date.min and (x.name or "").strip():
+            by_dob[x.dob].append(x)
+    out = []
+    for group in by_dob.values():
+        for i, a in enumerate(group):
+            for b in group[i + 1:]:
+                if a.row_number is None and b.row_number is None:
+                    continue
+                if a.apaar_id and a.apaar_id == b.apaar_id:
+                    continue
+                if (score := similarity(a.name, b.name)) < threshold:
+                    continue
+                ids = " / ".join(mask(x.apaar_id) or "no APAAR ID" for x in (a, b))
+                out.append(FlagDraft(
+                    "R08", "near_duplicate", sorted(x.row_number for x in (a, b) if x.row_number),
+                    {"ids": ids, "score": round(score, 2), "threshold": threshold,
+                     "a": _side(a), "b": _side(b)}))
     return out

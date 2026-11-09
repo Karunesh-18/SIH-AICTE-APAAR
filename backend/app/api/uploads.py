@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import institution_or_403, refuse, require_roles
+from app.api.masking import mask_evidence
 from app.db.session import get_db, get_session_factory
 from app.models.enums import AICTE_ROLES, INSTITUTION_ROLES, Role
 from app.models.org import Institution
@@ -103,7 +104,7 @@ def get_upload(upload_id: str, user: User = Depends(reader), db: Session = Depen
             FlagRecord, FlagRecord.record_id == StudentRecord.id).where(
             FlagRecord.flag_id == f.id).order_by(StudentRecord.row_number)).all()
         items.append({"id": f.id, "rule_code": f.rule_code, "reason_key": f.reason_key,
-                      "reason": f.reason, "evidence": f.evidence, "rows": rows})
+                      "reason": f.reason, "evidence": mask_evidence(f.evidence, user), "rows": rows})
     return upload_out(db, up) | {"flag_items": items}
 
 

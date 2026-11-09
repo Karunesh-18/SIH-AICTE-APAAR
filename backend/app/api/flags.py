@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
+from app.api.masking import mask_evidence
 from app.api.records import mask_record, record_out
 from app.api.schemas import Strict
 from app.core import clock
@@ -62,7 +63,7 @@ def get_flag(flag_id: str, user: User = Depends(reader), db: Session = Depends(g
     f = d["flag"]
     rv = d["rule_version"]
     return flag_out(f, d["institution"].name, len(d["records"])) | {
-        "evidence": f.evidence,
+        "evidence": mask_evidence(f.evidence, user),
         "rule_version": {"id": rv.id, "rule_code": rv.rule_code, "version_no": rv.version_no,
                          "params": rv.params, "message_en": rv.message_en,
                          "hard_stop": rv.hard_stop},
