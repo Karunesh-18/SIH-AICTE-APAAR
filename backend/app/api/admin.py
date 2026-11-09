@@ -15,7 +15,7 @@ from app.models.audit import AuditLog
 from app.models.enums import Role
 from app.models.notify import Outbox
 from app.models.user import User
-from app.services import anomaly, audit, clock_admin, notify, rules_admin, windows
+from app.services import anomaly, audit, clock_admin, notify, rule_preview, rules_admin, windows
 from app.services.errors import Invalid, NotFound
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -128,6 +128,10 @@ class RuleUpdateIn(_Note):
     hard_stop: bool | None = None
 
 
+class PreviewIn(Strict):
+    params: dict
+
+
 class RevertIn(_Note):
     to_version: int
 
@@ -161,6 +165,15 @@ def update_rule(code: str, body: RuleUpdateIn, user: User = Depends(admin_only),
                 db: Session = Depends(get_db)):
     changes = body.model_dump(exclude={"note"}, exclude_none=True)
     return _version_out(_guard(rules_admin.update, db, user, code, changes, body.note))
+
+
+@router.post("/rules/{code}/preview")
+def preview_rule(code: str, body: PreviewIn, _: User = Depends(admin_only),
+                 db: Session = Depends(get_db)):
+    try:
+        return rule_preview.preview(db, code, body.params)
+    except Invalid as e:
+        raise HTTPException(422, str(e)) from None
 
 
 @router.post("/rules/{code}/revert")

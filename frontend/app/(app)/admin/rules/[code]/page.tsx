@@ -18,7 +18,10 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { diffVersions, parseParams } from "@/lib/rules";
 import { formatDateTime } from "@/lib/status";
-import type { RuleVersion } from "@/lib/types";
+import { RulePreviewPanel } from "@/components/rule-preview-panel";
+import type { RulePreview, RuleVersion } from "@/lib/types";
+
+const PREVIEWABLE = ["R08", "R10", "R11"];
 import { useApiQuery } from "@/lib/use-api";
 
 const pretty = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v, null, 2)) ?? "";
@@ -35,6 +38,10 @@ function EditForm({ active, code, onSaved }: { active: RuleVersion; code: string
       params: parsed.ok ? parsed.value : undefined, enabled, hard_stop: hardStop, note: note.trim(),
     }),
     onSuccess: () => { setNote(""); toast.success(t("rules.saved")); onSaved(); },
+    onError: (e) => toast.error(e instanceof ApiError ? e.message : t("error.generic")),
+  });
+  const preview = useMutation({
+    mutationFn: () => api.post<RulePreview>(`/admin/rules/${code}/preview`, { params: parsed.ok ? parsed.value : {} }),
     onError: (e) => toast.error(e instanceof ApiError ? e.message : t("error.generic")),
   });
   return (
@@ -56,7 +63,13 @@ function EditForm({ active, code, onSaved }: { active: RuleVersion; code: string
         <Label htmlFor="note">{t("rules.note")}</Label>
         <Textarea id="note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
-      <div><Button type="submit" disabled={!parsed.ok || !note.trim() || save.isPending}>{t("rules.saveNew")}</Button></div>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={!parsed.ok || !note.trim() || save.isPending}>{t("rules.saveNew")}</Button>
+        {PREVIEWABLE.includes(code) && (
+          <Button type="button" variant="outline" disabled={!parsed.ok || preview.isPending} onClick={() => preview.mutate()}>{t("rules.preview")}</Button>
+        )}
+      </div>
+      {preview.data && <RulePreviewPanel preview={preview.data} />}
     </form>
   );
 }

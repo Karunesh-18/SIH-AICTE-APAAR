@@ -37,7 +37,14 @@ export type RuleVersion = {
   params: Record<string, unknown>; hard_stop: boolean; message_en: string; message_hi: string | null;
   note: string | null; is_active: boolean; created_by: string | null; created_at: string;
 };
-export type RuleSummary = { code: string; scope: string; title: string; active: RuleVersion | null };
+export type RulePreview = {
+  code: string; cycle: number; current_params: Record<string, unknown>;
+  proposed_params: Record<string, unknown>; current_count: number; proposed_count: number;
+  added: number; cleared: number; added_examples: Record<string, unknown>[];
+  cleared_examples: Record<string, unknown>[];
+  by_institution: { institution_id: string; name: string; current: number; proposed: number }[];
+};
+export type RuleSummary ={ code: string; scope: string; title: string; active: RuleVersion | null };
 
 export type FlagRow = {
   id: string; rule_code: string; reason_key: string; reason: string; state: string;
