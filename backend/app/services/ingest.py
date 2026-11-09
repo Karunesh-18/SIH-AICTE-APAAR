@@ -367,6 +367,7 @@ def process(db: Session, upload_id: str, data: bytes,
         db.commit()
         log.exception("upload %s failed", upload_id)
         raise
+    notify.dispatch_now(db)
     return up
 
 

@@ -4,7 +4,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.adapters.email import EmailAdapter
+from app.adapters.email import ConsoleEmail, EmailAdapter
 from app.core import clock
 from app.models.notify import Notification, Outbox
 from app.models.user import User
@@ -26,12 +26,13 @@ def enqueue(db: Session, users: list[User], *, subject: str, body: str,
         db.add(Outbox(kind="email", payload={"notification_id": mail.id}))
 
 
-def dispatch_queued(db: Session, email: EmailAdapter) -> None:
+def dispatch_queued(db: Session, email: EmailAdapter) -> dict:
     """Run after commit. Safe to run repeatedly: sent rows are skipped, failures retried."""
     pending = db.scalars(
         select(Outbox).where(Outbox.dispatched_at.is_(None), Outbox.attempts < MAX_ATTEMPTS)
         .order_by(Outbox.created_at)
     ).all()
+    out = {"sent": 0, "failed": 0}
     for item in pending:
         note = db.get(Notification, item.payload["notification_id"])
         user = db.get(User, note.user_id)
@@ -39,10 +40,39 @@ def dispatch_queued(db: Session, email: EmailAdapter) -> None:
             email.send(user.email, note.subject, note.body)
         except Exception:  # noqa: BLE001  adapters can fail any way; record and retry, never crash
             item.attempts += 1
+            out["failed"] += 1
             if item.attempts >= MAX_ATTEMPTS:
                 note.status = "FAILED"
             log.warning("email attempt %s failed for notification %s", item.attempts, note.id)
         else:
             note.status, note.sent_at = "SENT", clock.now()
             item.dispatched_at = clock.now()
+            out["sent"] += 1
         db.commit()
+    return out
+
+
+_adapter: EmailAdapter = ConsoleEmail()  # swap for SMTP when a real gateway is approved
+
+
+def get_adapter() -> EmailAdapter:
+    return _adapter
+
+
+def set_adapter(adapter: EmailAdapter) -> None:
+    global _adapter
+    _adapter = adapter
+
+
+def dispatch_now(db: Session) -> dict:
+    """Drain the outbox through the configured adapter. Call after a use case commits. Never
+    raises: a mail problem must not turn a successful request into an error."""
+    try:
+        return dispatch_queued(db, _adapter)
+    except Exception:
+        log.exception("outbox dispatch failed")
+        try:
+            db.rollback()
+        except Exception:  # noqa: BLE001
+            log.debug("rollback after failed dispatch also failed")
+        return {"sent": 0, "failed": 0, "error": True}

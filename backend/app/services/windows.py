@@ -110,4 +110,5 @@ def run_cycle(db: Session, now: datetime | None = None, actor: User | None = Non
                      entity_type="submission_window", entity_id="all",
                      after={k: (len(v) if k == "late" else v) for k, v in out.items()}
                      | {"now": now.isoformat()})
+    notify.dispatch_now(db)
     return out

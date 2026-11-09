@@ -120,6 +120,7 @@ def act(db: Session, user: User, flag_id: str, action: str, note: str,
             db.flush()
     except StaleDataError:
         raise Conflict("Someone else changed this flag. Reload it and try again.") from None
+    notify.dispatch_now(db)
     return flag
 
 

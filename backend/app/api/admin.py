@@ -13,8 +13,9 @@ from app.core.config import settings
 from app.db.session import get_db, uow
 from app.models.audit import AuditLog
 from app.models.enums import Role
+from app.models.notify import Outbox
 from app.models.user import User
-from app.services import anomaly, audit, clock_admin, rules_admin, windows
+from app.services import anomaly, audit, clock_admin, notify, rules_admin, windows
 from app.services.errors import NotFound
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -196,7 +197,17 @@ def run_cycle(user: User = Depends(admin_only), db: Session = Depends(get_db)):
     return windows.run_cycle(db, actor=user)
 
 
+@router.post("/outbox/dispatch")
+def dispatch_outbox(user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    """Send queued email now (the scheduler does this on a timer). Retries failures."""
+    out = notify.dispatch_now(db)
+    out["pending"] = db.scalar(select(func.count()).select_from(Outbox).where(
+        Outbox.dispatched_at.is_(None), Outbox.attempts < notify.MAX_ATTEMPTS)) or 0
+    return out
+
+
 @router.post("/anomaly/run")
 def run_anomaly(user: User = Depends(admin_only), db: Session = Depends(get_db)):
     raised = anomaly.run_all(db, clock.now(), user)
+    notify.dispatch_now(db)
     return {"raised": len(raised), "flags": [{"id": f.id, "rule": f.rule_code} for f in raised]}

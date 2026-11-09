@@ -97,6 +97,7 @@ def correct(db: Session, actor: User, record_id: str, changes: dict,
                            subject=f"{', '.join(codes)} flagged at {inst.name}",
                            body=f"A correction at {inst.name} raised a new flag.",
                            related_type="student_record", related_id=new.id)
+    notify.dispatch_now(db)
     return {"new": new, "old": old, "programme": prog, "closed": closed, "raised": raised}
 
 
@@ -139,6 +140,7 @@ def withdraw(db: Session, actor: User, record_id: str, reason: str) -> StudentRe
         if rec.apaar_id:
             _tell_counterparts(db, rec, prog)
         db.flush()
+    notify.dispatch_now(db)
     return rec
 
 

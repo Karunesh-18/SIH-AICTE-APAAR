@@ -102,6 +102,7 @@ MATRIX = {
     ("PUT", "/api/v1/admin/windows/{window}"): row(admin=200),
     ("POST", "/api/v1/admin/windows/run-cycle"): row(admin=200),
     ("POST", "/api/v1/admin/anomaly/run"): row(admin=200),
+    ("POST", "/api/v1/admin/outbox/dispatch"): row(admin=200),
     ("POST", "/api/v1/records/{record}/withdraw"): row(admin=200, inst_admin=200, inst_staff=200),
     ("POST", "/api/v1/consents"): row(admin=201, inst_admin=201, inst_staff=201),
     ("GET", "/api/v1/consents"): row(admin=200, officer_south=200, inst_admin=200, inst_staff=200),
