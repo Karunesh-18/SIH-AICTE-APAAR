@@ -166,3 +166,10 @@ Both should be decided before Phase 4.
 - Withdraw: status becomes `withdrawn`, the reason is saved, and the row stays.
 - Nothing is deleted.
 - The history view shows every version of one record.
+
+
+## Phase 3 additions (migration 0003)
+
+`api_key` (built): institution_id, name, prefix (first 8 characters of the token), key_hash (sha256, unique), scope (`records:submit`), created_by, revoked_at, last_used_at. The token itself is never stored.
+
+Ingestion notes: a row whose name, date of birth or admission date cannot be read is stored with an empty name, `0001-01-01`, or category `UNSPECIFIED` (those columns are NOT NULL) and flagged by R07. Re-uploading creates new versions: the earlier current row gets `is_current` false, `superseded_at`, `superseded_by`, and the new row has `version + 1` and `continues_record_id`. Rows with no APAAR ID are never superseded (no key to match on).

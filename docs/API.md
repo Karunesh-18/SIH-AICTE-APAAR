@@ -178,3 +178,13 @@ Institution users answer flags on their own records. The plan does not say which
 | GET, POST, PATCH | `/api/v1/institution/staff` | Institution admin (own) | Staff accounts | Yes (writes) |
 
 Every use of an API key is audited, not only creating and revoking it.
+
+
+## Phase 3 as built (backend)
+
+- `POST /uploads` (multipart `file`, `cycle_year`, `institution_id` for AICTE roles) returns 202 `{id, status, row_count: null}`. Processing runs in a FastAPI background task. `GET /uploads/{id}` returns status, counts, `flags {total, by_rule}` and the rejection message. `GET /uploads` lists in scope (`items`, `total`).
+- A whole upload is `REJECTED` only when it is empty, unreadable, lacks required columns, or the programme cannot be told. Nothing but the upload row is stored then. `accepted_count` is the rows stored (nothing is dropped); `flagged_count` is distinct rows touched by a flag.
+- `GET /institutions/{id}/records?status=&limit=&offset=` lists current records. `GET /records/{id}` is audited (`RECORD.VIEWED`) and returns version history and flags. Name, date of birth and APAAR ID are masked for outside readers in the serializer.
+- `POST /institutions/{id}/students` takes `{cycle_year, students: [...]}` with a JWT or `X-API-Key`. It processes synchronously and returns the upload summary.
+- `POST/GET /institutions/{id}/api-keys`, `DELETE .../{key_id}` (revoke). Institution admin of that institution or AICTE admin. The token is returned once.
+- `/admin/rules`, `/admin/rules/{code}/versions`, `PUT /admin/rules/{code}`, `/admin/rules/{code}/diff?from=&to=`, `POST /admin/rules/{code}/revert`. AICTE admin only. A note is required to change or revert.

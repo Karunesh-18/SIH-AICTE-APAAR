@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,7 @@ from app.db.session import get_db, uow
 from app.models.audit import AuditLog
 from app.models.enums import Role
 from app.models.user import User
-from app.services import audit, clock_admin
+from app.services import audit, clock_admin, rules_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 admin_only = require_roles(Role.AICTE_ADMIN)
@@ -70,3 +70,72 @@ def get_clock(_: User = Depends(admin_only)):
 def set_clock(body: ClockIn, user: User = Depends(admin_only), db: Session = Depends(get_db)):
     seconds = clock_admin.set_clock(db, user, body.advance_days, body.reset)
     return {"offset_days": seconds / 86400, "now": clock.now()}
+
+
+# ---- rule versions ------------------------------------------------------------------------------
+
+def _version_out(v) -> dict:
+    return {"id": v.id, "rule_code": v.rule_code, "version_no": v.version_no,
+            "enabled": v.enabled, "params": v.params, "hard_stop": v.hard_stop,
+            "message_en": v.message_en, "message_hi": v.message_hi, "note": v.note,
+            "is_active": v.is_active, "created_by": v.created_by, "created_at": v.created_at}
+
+
+class _Note(Strict):
+    note: str
+
+    @field_validator("note")
+    @classmethod
+    def _required(cls, v):
+        if not v.strip():
+            raise ValueError("a note is required")
+        return v.strip()
+
+
+class RuleUpdateIn(_Note):
+    params: dict | None = None
+    message_en: str | None = None
+    message_hi: str | None = None
+    enabled: bool | None = None
+    hard_stop: bool | None = None
+
+
+class RevertIn(_Note):
+    to_version: int
+
+
+def _guard(fn, *a):
+    try:
+        return fn(*a)
+    except rules_admin.NotFound as e:
+        raise HTTPException(404, str(e)) from None
+
+
+@router.get("/rules")
+def list_rules(_: User = Depends(admin_only), db: Session = Depends(get_db)):
+    return [{"code": r.code, "scope": r.scope, "title": r.title,
+             "active": _version_out(v) if v else None} for r, v in rules_admin.list_rules(db)]
+
+
+@router.get("/rules/{code}/versions")
+def rule_versions(code: str, _: User = Depends(admin_only), db: Session = Depends(get_db)):
+    return [_version_out(v) for v in _guard(rules_admin.versions, db, code)]
+
+
+@router.get("/rules/{code}/diff")
+def rule_diff(code: str, from_: int = Query(alias="from"), to: int = Query(),
+              _: User = Depends(admin_only), db: Session = Depends(get_db)):
+    return _guard(rules_admin.diff, db, code, from_, to)
+
+
+@router.put("/rules/{code}")
+def update_rule(code: str, body: RuleUpdateIn, user: User = Depends(admin_only),
+                db: Session = Depends(get_db)):
+    changes = body.model_dump(exclude={"note"}, exclude_none=True)
+    return _version_out(_guard(rules_admin.update, db, user, code, changes, body.note))
+
+
+@router.post("/rules/{code}/revert")
+def revert_rule(code: str, body: RevertIn, user: User = Depends(admin_only),
+                db: Session = Depends(get_db)):
+    return _version_out(_guard(rules_admin.revert, db, user, code, body.to_version, body.note))

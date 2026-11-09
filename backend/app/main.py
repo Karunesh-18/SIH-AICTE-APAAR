@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError
 
-from app.api import admin, auth, institutions, notifications
+from app.api import admin, apikeys, auth, institutions, notifications, records, uploads
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.services import clock_admin
@@ -32,7 +32,8 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for r in (auth.router, institutions.router, notifications.router, admin.router):
+    for r in (auth.router, institutions.router, notifications.router, admin.router,
+              uploads.router, records.router, apikeys.router):
         app.include_router(r, prefix="/api/v1")
     return app
 

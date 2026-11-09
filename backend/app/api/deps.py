@@ -4,9 +4,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
-from app.db.session import get_db
+from app.db.session import get_db, uow
 from app.models.enums import Role
+from app.models.org import Institution
 from app.models.user import User
+from app.services import audit
+from app.services.access import can_access_institution
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -36,3 +39,21 @@ def require_roles(*roles: Role):
         return user
 
     return dep
+
+
+def institution_or_403(db: Session, user: User, institution_id: str) -> Institution:
+    """404 if it does not exist; 403 (audited) if the user is outside its scope."""
+    inst = db.get(Institution, institution_id)
+    if inst is None:
+        raise HTTPException(404, "Institution not found")
+    if not can_access_institution(db, user, inst):
+        refuse(db, user, "institution", inst.id)
+        raise HTTPException(403, "You do not have access to this institution")
+    return inst
+
+
+def refuse(db: Session, user: User | None, entity_type: str, entity_id: str, **after) -> None:
+    with uow(db):
+        audit.append(db, actor_id=user.id if user else None,
+                     actor_role=user.role if user else "API_KEY", action="ACCESS.REFUSED",
+                     entity_type=entity_type, entity_id=entity_id, after=after or None)
