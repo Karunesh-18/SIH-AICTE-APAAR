@@ -9,6 +9,7 @@ import { LangSwitch } from "@/components/lang-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 import { navFor } from "@/lib/nav";
+import { BrandLockup } from "@/components/brand";
 import { ClockBanner } from "@/components/clock-banner";
 
 function Shell({ children }: { children: ReactNode }) {
@@ -25,18 +26,18 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:ring-2 focus:ring-ring">{t("a11y.skip")}</a>
-      <aside className="flex flex-col gap-4 border-b border-sidebar-border bg-sidebar p-4 md:w-60 md:border-r md:border-b-0">
-        <p className="font-semibold">{t("app.name")}</p>
+      <aside className="flex flex-col gap-4 border-b border-sidebar-border bg-sidebar p-4 md:w-64 md:border-r md:border-b-0">
+        <BrandLockup />
         <p className="text-xs text-muted-foreground md:hidden">{t("app.notice")}</p>
         <nav aria-label={t("a11y.primaryNav")} className="flex flex-row gap-1 overflow-x-auto text-sm md:flex-1 md:flex-col">
           {navFor(user.role).map((n) => {
             const active = path === n.href || path.startsWith(n.href + "/");
             return (
               <Link key={n.href} href={n.href} aria-current={active ? "page" : undefined}
-                    className={`flex min-h-11 items-center rounded-md px-3 py-2 whitespace-nowrap md:min-h-9 ${
+                    className={`flex min-h-11 items-center rounded-md border-b-[3px] px-3 py-2 whitespace-nowrap md:min-h-11 md:border-b-0 md:border-s-[3px] ${
                       active
-                        ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent/60"
+                        ? "border-primary bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+                        : "border-transparent text-sidebar-foreground hover:bg-sidebar-accent/60"
                     }`}>
                 {t(n.key)}
               </Link>

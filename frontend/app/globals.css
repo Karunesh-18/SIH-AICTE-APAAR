@@ -163,7 +163,13 @@
   html {
     @apply font-sans;
   }
-  /* Browser surfaces themed from the palette. */
+  /* Browser surfaces themed from the palette. color-scheme themes native select popups and arrows. */
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  select, select option {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
   ::selection {
     background: color-mix(in oklch, var(--primary) 28%, transparent);
   }
@@ -183,6 +189,67 @@
   :lang(hi) {
     line-height: 1.7;
   }
+}
+
+/* Type scale: display / title / section / eyebrow / figure. Weights carry hierarchy, not size alone. */
+@layer components {
+  .t-display {
+    font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  .t-title {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .t-section {
+    font-size: 1.125rem;
+    line-height: 1.3;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .t-eyebrow {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .t-figure {
+    font-size: 2.25rem;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  /* Structural verdigris: a heavy rule that opens a section. */
+  .rule-primary {
+    border-top: 3px solid var(--primary);
+  }
+  .brand-panel {
+    background: var(--sidebar);
+    border-inline-end: 3px solid var(--primary);
+  }
+}
+
+/* Hindi voice: Noto Sans Devanagari reads small next to Latin, so lift the root size a little,
+   and give headings a tighter-but-safe line height with no negative tracking (it breaks conjuncts). */
+html:lang(hi) {
+  font-size: 106.25%;
+}
+:lang(hi) :is(.t-display, .t-title, .t-section, .t-eyebrow, .t-figure, h1, h2, h3) {
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+}
+:lang(hi) .t-display {
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 /* Landing: the waymark line draws once. Smooth anchor scrolling only when motion is welcome. */

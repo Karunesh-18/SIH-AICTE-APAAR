@@ -19,7 +19,7 @@ Start the backend first (`cd backend; .\.venv\Scripts\python -m uvicorn app.main
 | Variable | Default | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api/v1` | API base URL |
-| `NEXT_PUBLIC_DEMO` | on | Set to `0` to hide the demo-account buttons on the login page |
+| `NEXT_PUBLIC_DEMO` | off | Set to exactly `1` to show the collapsed "Demo only" account buttons on the login page |
 
 ## Scripts
 

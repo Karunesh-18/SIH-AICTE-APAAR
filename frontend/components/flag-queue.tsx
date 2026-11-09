@@ -1,4 +1,5 @@
 "use client";
+import { selectClass } from "@/components/filter-select";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Age, RuleChip, StateBadge } from "@/components/flag-parts";
@@ -13,7 +14,7 @@ import type { FlagRow, InstitutionRow, Page, RegionRow } from "@/lib/types";
 import { useApiQuery } from "@/lib/use-api";
 
 const LIMIT = 25;
-const sel = "h-8 rounded-lg border border-input bg-transparent px-2 text-sm dark:bg-input/30";
+const sel = selectClass;
 
 /** Flag list. Filters live in the URL query string so a view can be shared and survives reload. */
 export function FlagQueue({ mode }: { mode: "aicte" | "institution" }) {

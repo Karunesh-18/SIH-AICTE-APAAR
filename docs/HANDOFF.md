@@ -44,7 +44,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The API defaults to `http://localhost:8000/api/v1`, so no variable is needed. Set `NEXT_PUBLIC_DEMO=0` to hide the demo-user buttons on the login page.
+Open http://localhost:3000. The API defaults to `http://localhost:8000/api/v1`, so no variable is needed. Demo-user buttons on the login page are off by default; set `NEXT_PUBLIC_DEMO=1` (for example in `frontend/.env.local`, gitignored) to show them.
 
 Before using any Next.js API, read the docs in `frontend/node_modules/next/dist/docs/`. This version of Next.js has breaking changes.
 

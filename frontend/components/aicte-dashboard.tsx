@@ -64,7 +64,7 @@ export function AicteDashboardView() {
                 {figures.map(([k, v]) => (
                   <div key={k}>
                     <dt className="text-xs text-muted-foreground">{t(k)}</dt>
-                    <dd className="text-2xl font-semibold tabular-nums">{v}</dd>
+                    <dd className="t-figure text-primary">{v}</dd>
                   </div>
                 ))}
               </dl>
