@@ -35,7 +35,7 @@ The backend has its Phase 1 foundation built: login, roles, the audit chain with
 | Review queue, flag notes, record versions and withdrawal | Built in the backend (Phase 4); no screens yet |
 | Submission windows with reminder ladder, late list, scheduled rules R09 to R12, dashboards and reports (backend, Phase 5) | Built. Tests pass. |
 | Phase 5 screens: AICTE dashboard with intake and flags-by-rule charts, institution detail, institution home status, reports (run, CSV export, save), submission windows and demo clock admin, demo clock banner | Built (frontend). Vitest, tsc, eslint and `next build` pass. Not checked in a browser. |
-| Consent, verifier approval, Ed25519 signed results, QR check | Proposed |
+| Consent ledger, verifier approval, purpose policies, Ed25519 signed results, public check API | Built (backend, Phase 6). Tests pass. QR page and screens in the frontend are proposed. |
 | Near-duplicate names with TF-IDF (R08) | Proposed |
 | English and Hindi text | Proposed (the API stores a language per user) |
 | `docker compose up` | Proposed. Written later, **untested** (Docker is not installed on the dev machine). |

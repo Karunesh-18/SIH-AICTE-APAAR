@@ -22,7 +22,7 @@ Student-level data submission, validation, monitoring and consent-based verifica
 | Intake-cap, cross-institution duplicate and consistency checks | Proposed |
 | TF-IDF near-duplicate name flag | Proposed (suggestion only) |
 | Privacy masking of student fields in the API | Proposed |
-| Consent-based verification, signed result, QR | Proposed |
+| Consent-based verification, signed result, public check API | Built (backend, Phase 6). QR page and screens: proposed. |
 
 Built so far in this repo: project scaffold, `/health`, the Phase 1 backend (auth, audit chain, institutions API, clock, notifications), the Phase 1 frontend login, API client and shell, the Phase 2 student data tables with the synthetic seed, and the design tokens. Upload, the checks and the record and flag screens are proposed.
 

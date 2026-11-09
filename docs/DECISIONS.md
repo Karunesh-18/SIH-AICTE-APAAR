@@ -320,3 +320,28 @@ These are settled in `docs/PLAN.md`. They are listed here so that they are easy 
 
 **Decision.** Pure functions in `domain/rules_scheduled.py`; `services/anomaly.py` raises flags (rule version snapshot, FlagEvent, audit, officer notice) and never raises an identical open flag (same institution, rule and cycle) twice. R10 compares with the previous cycle's current non-withdrawn count (no previous data, no flag). R12: one upload of at least `bulk_rows` rows in the last `last_hours` before close whose mix is unusual: one category above 80 percent, or a total-variation distance from the institution's earlier-cycle mix above 0.3. All numbers (`jump_pct` 25, `pending_pct` 20, `last_hours` 6, `bulk_rows` 50, 80 percent, 0.3) are placeholders for AICTE to set through the rule parameters.
 
+
+
+---
+
+## ADR-020: Verification token format
+
+**Status.** Accepted.
+
+**Decision.** A token is a JWT signed with Ed25519 (`alg: EdDSA`, header `kid` = first 16 hex of the sha256 of the public key). Claims: `jti` (uuid, also stored in `verification_request.token_jti`), `sub` (APAAR ID masked as `XXXX XXXX 1234`), `purpose`, `fields` (name to value, only the fields the decision allowed), `iat`, `exp` (default 7 days, `VERIFY_TOKEN_DAYS`), `iss` (`VERIFY_ISSUER`). Checking pins the algorithm to EdDSA, requires every claim and the issuer, and does not let the library judge expiry: expiry is compared against `core/clock.now`, so the demo clock moves it. Order of the public answer: signature bad, unknown `jti` or malformed means `TAMPERED` (nothing else is returned); then `REVOKED` (by `jti`), then `EXPIRED`, then `GENUINE`. `alg: none`, HS256 signed with the public key as the secret, and tokens from another key are all `TAMPERED`. The QR payload is `{PUBLIC_BASE_URL}/verify/{token}`; the base comes from settings, never from the request Host header. The token is a bearer credential: anyone holding it can show it. Limits: short life, revocation, and the fields in it are only what the consent allowed. The token string is shown once, in the `POST /verifications` answer; it is not stored, so `GET /verifications/{id}` returns the metadata only (data minimisation).
+
+---
+
+## ADR-021: Refusal semantics and enumeration
+
+**Status.** Accepted.
+
+**Decision.** `domain/consent.decide` returns `Allow(fields, consent_id)` or `Refuse(reason, detail)`. Allowed fields are requested, intersected with the purpose policy and the consent; a field outside either list refuses the whole request and names the field, it is never trimmed. Order of checks: verifier approved for this purpose, policy, student exists (current, not withdrawn), consent given, covers the purpose, not withdrawn or expired (`expires_at == now` is expired), covers every field in one consent. Policy is checked before the student so that refusal does not depend on whether an ID exists. The precise reason is stored in `verification_request` and in the `VERIFICATION.REFUSED` audit entry. A verifier is told it only for two reasons that reveal nothing about students: `VERIFIER_NOT_APPROVED` and `FIELD_NOT_ALLOWED_BY_POLICY` (with the field names, since the policy is public). Every other reason (`UNKNOWN_STUDENT`, `NO_CONSENT`, `EXPIRED`, `WITHDRAWN`, `PURPOSE_NOT_COVERED`, `FIELD_NOT_IN_CONSENT`) is the same answer, `CONSENT_NOT_AVAILABLE`, in the POST answer and in the verifier's own history (the precise reason is shown to AICTE and to the student's institution, not to the verifier). This departs from the first wording of the task, which kept the precise reason in the verifier's history: that would make history an oracle. Further limits: a refusal rate limit per verifier (`VERIFY_MAX_REFUSALS` per 5 minutes, then 429), registration answers 202 with the same text whether or not the email exists (and hashes the password first, so timing does not show it), institutions get the same 403 for another institution's student as for an unknown one, and `GET /consents?apaar=` outside scope returns an empty list. Notification to the institution is sent on a grant only, with the ID masked.
+
+---
+
+## ADR-022: Signing key handling
+
+**Status.** Accepted.
+
+**Decision.** `services/signing.py` loads an Ed25519 private key from `VERIFY_KEY_PATH` (default `backend/keys/verify_ed25519.pem`). If the file is missing it is generated on first use, created exclusively (`O_EXCL`, mode 0600 where the OS honours it) so two workers cannot overwrite each other. `keys/` is gitignored (a test checks the ignore line). Only the public key is served: `GET /api/v1/verify/public-key` returns PEM and JWK. There is one key; rotation (a key set selected by `kid`) is not built, so replacing the key invalidates every issued token. The key is not encrypted at rest: a production deployment would hold it in a KMS or HSM. Tests use a throwaway key per test.

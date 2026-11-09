@@ -1,9 +1,11 @@
 """Role x endpoint matrix. Every non-public route must appear here, or the meta-test fails."""
-from datetime import UTC, datetime
+import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
 
+from app.core import clock
 from app.main import create_app
 
 ROLES = ["admin", "officer_south", "inst_admin", "inst_staff", "verifier", "anon"]
@@ -14,7 +16,9 @@ EMAIL = {
     "inst_staff": "kaveri.staff@demo.test",
     "verifier": "verifier@demo.test",
 }
-PUBLIC = {("POST", "/api/v1/auth/login"), ("POST", "/api/v1/auth/refresh")}
+PUBLIC = {("POST", "/api/v1/auth/login"), ("POST", "/api/v1/auth/refresh"),
+          ("POST", "/api/v1/verifiers/register"), ("GET", "/api/v1/verify/public-key"),
+          ("GET", "/api/v1/verify/{token}")}
 
 
 def row(**expected):
@@ -99,6 +103,22 @@ MATRIX = {
     ("POST", "/api/v1/admin/windows/run-cycle"): row(admin=200),
     ("POST", "/api/v1/admin/anomaly/run"): row(admin=200),
     ("POST", "/api/v1/records/{record}/withdraw"): row(admin=200, inst_admin=200, inst_staff=200),
+    ("POST", "/api/v1/consents"): row(admin=201, inst_admin=201, inst_staff=201),
+    ("GET", "/api/v1/consents"): row(admin=200, officer_south=200, inst_admin=200, inst_staff=200),
+    ("DELETE", "/api/v1/consents/{consent}"): row(admin=200, inst_admin=200, inst_staff=200),
+    ("GET", "/api/v1/admin/verifiers"): row(admin=200),
+    ("POST", "/api/v1/admin/verifiers/{vreg}/approve"): row(admin=200),
+    ("POST", "/api/v1/admin/verifiers/{vreg}/reject"): row(admin=200),
+    ("GET", "/api/v1/admin/policies"): row(admin=200),
+    ("PUT", "/api/v1/admin/policies/EMPLOYMENT"): row(admin=200),
+    ("POST", "/api/v1/verifications"): row(verifier=200),
+    ("GET", "/api/v1/verifications"): row(admin=200, officer_south=200, inst_admin=200,
+                                          inst_staff=200, verifier=200),
+    # the verification belongs to the demo verifier and concerns a Kaveri student
+    ("GET", "/api/v1/verifications/{vreq}"): row(admin=200, officer_south=200, inst_admin=200,
+                                                 inst_staff=200, verifier=200),
+    ("POST", "/api/v1/verifications/{vreq}/revoke"): row(admin=200, inst_admin=200,
+                                                         inst_staff=200, verifier=200),
 }
 WINDOW = {"cycle_year": 2026, "opens_at": "2026-06-01T00:00:00Z",
           "closes_at": "2026-09-30T00:00:00Z",
@@ -116,6 +136,14 @@ BODIES = {
     ("POST", "/api/v1/institutions/{kaveri}/api-keys"): {"name": "matrix"},
     ("PATCH", "/api/v1/records/{record}"): {"name": "Matrix Student"},
     ("POST", "/api/v1/records/{record}/withdraw"): {"reason": "matrix"},
+    ("POST", "/api/v1/consents"): {"apaar_id": "{ap1}", "purposes": ["EMPLOYMENT"],
+                                   "fields": ["name"], "source": "MATRIX",
+                                   "expires_at": "{exp}"},
+    ("POST", "/api/v1/admin/verifiers/{vreg}/approve"): {"note": "matrix"},
+    ("POST", "/api/v1/admin/verifiers/{vreg}/reject"): {"note": "matrix"},
+    ("PUT", "/api/v1/admin/policies/EMPLOYMENT"): {"allowed_fields": ["name"], "note": "matrix"},
+    ("POST", "/api/v1/verifications"): {"apaar_id": "{ap1}", "purpose": "EMPLOYMENT",
+                                        "fields": ["name"]},
     **{("POST", f"/api/v1/flags/{{flag}}/{a}"): {"note": "matrix"}
        for a in ("review", "resolve", "dismiss", "ask", "link", "reply")},
 }
@@ -166,7 +194,25 @@ def test_matrix(client, login, db, world, rules, method, tpl, role, expected):
     db.add(window)
     db.commit()
     window_id = window.id
-    path = tpl.format(flag=flag.id, kaveri=world["kaveri"].id, northfield=world["northfield"].id,
+    from app.models.consent import Verifier
+    from app.seed import seed_policies
+    from app.services import verification
+    from tests.phase6_helpers import give, second_verifier
+    seed_policies(db)
+    db.add(Verifier(org_name="Matrix Org", org_type="OTHER", contact="m@x.test",
+                    requested_purposes=["EMPLOYMENT"], status="APPROVED",
+                    user_id=world["users"]["verifier"].id))
+    db.commit()
+    consent_id = give(db, "999900000001").id
+    from app.db.session import uow
+    with uow(db):
+        vreq = verification.request_verification(
+            db, world["users"]["verifier"], apaar_id="999900000001", purpose="EMPLOYMENT",
+            fields=["name"])["id"]
+    _pending_user, pending_v = second_verifier(db)
+    pending_v.status = "PENDING"
+    db.commit()
+    path = tpl.format(consent=consent_id, vreg=pending_v.id, vreq=vreq, flag=flag.id, kaveri=world["kaveri"].id, northfield=world["northfield"].id,
                       notification=_admin_notification(db, world), upload=up, record=record,
                       key=key, report="category_counts", window=window_id)
     headers = {} if role == "anon" else login(EMAIL[role])
@@ -177,7 +223,9 @@ def test_matrix(client, login, db, world, rules, method, tpl, role, expected):
     else:
         params = {k: v.format(kaveri=world["kaveri"].id) if isinstance(v, str) else v
                   for k, v in (QUERY.get((method, tpl)) or {}).items()} or None
-        kw = {"json": BODIES.get((method, tpl)), "params": params}
+        body = json.loads(json.dumps(BODIES.get((method, tpl))).replace("{ap1}", "999900000001").replace(
+            "{exp}", (clock.now() + timedelta(days=100)).isoformat()))
+        kw = {"json": body, "params": params}
     r = client.request(method, path, headers=headers, **kw)
     assert r.status_code == expected, r.text
 
@@ -194,5 +242,7 @@ def test_every_route_is_in_the_matrix():
         "{notification}", "{notification_id}").replace("{upload}", "{upload_id}").replace(
         "{record}", "{record_id}").replace("{flag}", "{flag_id}").replace(
         "/templates/csv", "/templates/{fmt}").replace("/templates/xlsx", "/templates/{fmt}").replace("{key}", "{key_id}").replace("{report}", "{key}").replace("{window}", "{window_id}").replace(
-        "/rules/R02", "/rules/{code}")) for (m, t) in MATRIX} | PUBLIC
+        "/rules/R02", "/rules/{code}").replace("{consent}", "{consent_id}").replace(
+        "{vreg}", "{verifier_id}").replace("{vreq}", "{request_id}").replace(
+        "/policies/EMPLOYMENT", "/policies/{purpose}")) for (m, t) in MATRIX} | PUBLIC
     assert seen - covered == set(), f"routes missing from permission matrix: {seen - covered}"

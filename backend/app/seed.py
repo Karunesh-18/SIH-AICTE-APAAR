@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
 from app.db.base import Base
+from app.models.consent import Consent, PurposePolicy, Verifier
 from app.models.org import Institution, Programme, Region
 from app.models.rules import Rule, RuleVersion
 from app.models.student import (
@@ -245,7 +246,27 @@ def seed(db: Session, reset: bool = False) -> None:
     for name, (*_rest, n_students) in {i[0]: i for i in INSTITUTIONS[6:]}.items():
         upload(name, [student(name, n) for n in range(1, n_students + 1)])
 
+    seed_policies(db, commit=False)
     db.commit()
+
+
+POLICIES = {
+    "EMPLOYMENT": ["name", "programme", "status"],
+    "HIGHER_EDUCATION": ["name", "programme", "level", "year_of_study"],
+    "REGULATORY": ["name", "programme", "status", "admission_category"],
+    "SCHOLARSHIP": ["name", "programme", "status", "admission_category"],
+}
+
+
+def seed_policies(db: Session, commit: bool = True) -> None:
+    """Version 1 of the field allow-list for each consent purpose. AICTE can change them."""
+    if db.scalar(select(func.count()).select_from(PurposePolicy)):
+        raise RuntimeError("Purpose policies already exist.")
+    for purpose, fields in POLICIES.items():
+        db.add(PurposePolicy(purpose=purpose, allowed_fields=fields, version=1, is_active=True,
+                             note="Initial version"))
+    if commit:
+        db.commit()
 
 
 def seed_demo_flags(db: Session) -> None:
@@ -322,6 +343,50 @@ def seed_demo_windows(db: Session) -> None:
     db.commit()
 
 
+def seed_demo_verification(db: Session) -> None:
+    """An invented employer (the verifier@demo.test user, approved), one organisation waiting for
+    approval, and consents for four Kaveri students: valid for EMPLOYMENT, expired, withdrawn and
+    for SCHOLARSHIP only. The fifth student has none. Demo data only."""
+    from app.core import clock
+
+    if db.scalar(select(func.count()).select_from(Verifier)):
+        raise RuntimeError("Verifiers already exist; run on a freshly seeded database.")
+    kaveri = db.scalars(select(Institution).where(Institution.name == "Kaveri Valley College")).one()
+    ids = db.scalars(
+        select(StudentRecord.apaar_id).join(Programme, Programme.id == StudentRecord.programme_id)
+        .where(Programme.institution_id == kaveri.id, StudentRecord.is_current,
+               StudentRecord.apaar_id.is_not(None), StudentRecord.status != "withdrawn")
+        .order_by(StudentRecord.row_number).limit(5)).all()
+    now = clock.now()
+    users = {u.email: u for u in db.scalars(select(User))}
+    db.add(Verifier(org_name="Meridian Talent Services (fictional)", org_type="EMPLOYER",
+                    contact="Hiring desk, hr@meridian-talent.test",
+                    requested_purposes=["EMPLOYMENT", "HIGHER_EDUCATION"], status="APPROVED",
+                    decided_by=users["admin@demo.test"].id, decision_note="Registration checked",
+                    user_id=users["verifier@demo.test"].id))
+    pending = User(email="pending.verifier@demo.test", full_name="Pending Verifier",
+                   role="VERIFIER", password_hash=hash_password(DEMO_PASSWORD), is_active=False)
+    db.add(pending)
+    db.flush()
+    db.add(Verifier(org_name="Kestrel Scholarship Trust (fictional)", org_type="OTHER",
+                    contact="Trustee office, office@kestrel-trust.test",
+                    requested_purposes=["SCHOLARSHIP"], status="PENDING", user_id=pending.id))
+    basic = ["name", "programme", "status"]
+
+    def consent(apaar, purposes, given_days_ago, valid_days, withdrawn=False):
+        db.add(Consent(apaar_id=apaar, purposes=purposes, fields=basic, source="AT_ADMISSION",
+                       given_at=now - timedelta(days=given_days_ago),
+                       expires_at=now + timedelta(days=valid_days),
+                       withdrawn_at=now - timedelta(days=1) if withdrawn else None,
+                       recorded_by=users["inst-admin@demo.test"].id))
+
+    consent(ids[0], ["EMPLOYMENT"], 10, 355)
+    consent(ids[1], ["EMPLOYMENT"], 400, -35)
+    consent(ids[2], ["EMPLOYMENT"], 10, 355, withdrawn=True)
+    consent(ids[3], ["SCHOLARSHIP"], 10, 355)
+    db.commit()
+
+
 if __name__ == "__main__":
     from app.db.session import SessionLocal
 
@@ -332,6 +397,8 @@ if __name__ == "__main__":
     ap.add_argument("--with-windows", action="store_true",
                     help="then add a submission window, an older cycle and two non-submitters "
                          "(needs --with-flags)")
+    ap.add_argument("--with-verification", action="store_true",
+                    help="then add an approved and a pending verifier and sample consents")
     args = ap.parse_args()
     with SessionLocal() as session:
         seed(session, reset=args.reset)
@@ -339,4 +406,6 @@ if __name__ == "__main__":
             seed_demo_flags(session)
         if args.with_windows:
             seed_demo_windows(session)
+        if args.with_verification:
+            seed_demo_verification(session)
     print("Seeded. Demo users: *@demo.test, password", DEMO_PASSWORD)

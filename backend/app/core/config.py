@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     scheduler_minutes: int = 15
     login_max_attempts: int = 10
     bcrypt_rounds: int = 12
+    # Verification tokens (Ed25519). The key file is generated on first run and never committed.
+    verify_key_path: str = "keys/verify_ed25519.pem"
+    verify_token_days: int = 7
+    verify_issuer: str = "waymark-apaar-hub"
+    public_base_url: str = "http://localhost:3000"  # what the QR code opens: {base}/verify/{token}
+    verify_max_refusals: int = 30  # refused requests per verifier per 5 minutes
+    register_max_per_hour: int = 5  # verifier registrations per client address
+    check_max_per_minute: int = 120  # public token checks per client address
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     @model_validator(mode="after")

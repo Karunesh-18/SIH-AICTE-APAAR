@@ -212,3 +212,21 @@ Every use of an API key is audited, not only creating and revoking it.
 - `GET /dashboards/intake-use` and `/dashboards/flags-trend` return `{rows}` for charts. List and dashboard reads are not audited.
 - Reports: `enrolment_vs_intake` (`group_by` programme, institution, programme_type, region), `flags_by_rule_month`, `late_submitters`, `pending_apaar_share`, `duplicate_cases`, `category_counts`. Verifiers get 403.
 - Window ladder steps are `{step, offset_hours (from closes_at), audience: institution|officer|admin}`.
+
+
+## Phase 6 backend: consent and verification (built)
+
+All under `/api/v1`. Bodies reject unknown keys (422). Purposes: `EMPLOYMENT`, `HIGHER_EDUCATION`, `REGULATORY`, `SCHOLARSHIP`. Answer fields: `name`, `programme`, `status`, `level`, `year_of_study`, `admission_category`.
+
+- `POST /consents` `{apaar_id, purposes[], fields[], source, expires_at}` (institution admin or staff for a student currently at their institution, else 403 plus `ACCESS.REFUSED`, the same for an unknown ID; AICTE admin for any existing student, 404 otherwise). `given_at`, `recorded_by` and `withdrawn_at` are set by the server. `expires_at` must be in the future and within three years. Audit `CONSENT.RECORDED`.
+- `DELETE /consents/{id}` withdraws (admin, or institution that holds the student; 403 outside scope, 409 if already withdrawn). Audit `CONSENT.WITHDRAWN`.
+- `GET /consents?apaar=&limit=&offset=` `{items}`. Scoped like records: institution its own students, officer their regions, admin all. The ID is masked for any viewer without access to the student.
+- `POST /verifiers/register` PUBLIC, `{org_name, org_type, contact, email, password, requested_purposes[]}` returns 202 with a fixed message whether or not the email exists. Creates an inactive `VERIFIER` user and a `PENDING` verifier. Rate limited per address (`REGISTER_MAX_PER_HOUR`, 429).
+- `GET /admin/verifiers?status=`, `POST /admin/verifiers/{id}/approve|reject` `{note}` (AICTE admin; note required; 409 if already decided). Approve activates the user. A verifier may request only the purposes it registered for.
+- `GET /admin/policies` `{items, fields}` (active version per purpose), `PUT /admin/policies/{purpose}` `{allowed_fields[], note}` writes a new version row (the old stays, inactive), audit `POLICY.UPDATED`.
+- `POST /verifications` `{apaar_id, purpose, fields[]}` (VERIFIER with a verifier record; else 403). Always 200 for a decision. Granted: `{id, outcome: "GRANTED", purpose, fields{}, token, qr_url, issued_at, expires_at}`. Refused: `{id, outcome: "REFUSED", reason, message, detail?}` where `reason` is `CONSENT_NOT_AVAILABLE`, `FIELD_NOT_ALLOWED_BY_POLICY` (with `detail` = field names) or `VERIFIER_NOT_APPROVED` (ADR-021). 429 after too many refusals. Audit `VERIFICATION.GRANTED` or `VERIFICATION.REFUSED` (precise reason). The institution is notified on a grant.
+- `GET /verifications` `{items}` and `GET /verifications/{id}` (audited `VERIFICATION.VIEWED`). Verifier: own only (another verifier's id is 404). Institution: requests about its own students (403 otherwise). Officer: their regions. Admin: all. `refusal_reason` is the precise reason for AICTE and institution, the public one for the verifier.
+- `POST /verifications/{id}/revoke` (AICTE admin, the issuing verifier, or the institution that holds the student; 409 if refused or already revoked). Audit `VERIFICATION.REVOKED`.
+- `GET /verify/public-key` PUBLIC `{pem, jwk, alg}`.
+- `GET /verify/{token}` PUBLIC `{status: GENUINE|EXPIRED|REVOKED|TAMPERED, fields, issuer, issued_at, expires_at, purpose}`; `fields` only when genuine; everything is null when tampered. Audited as `VERIFICATION.CHECKED` with no actor. Rate limited per client address (`CHECK_MAX_PER_MINUTE`). Behind a proxy the address is the proxy's unless the deployment forwards the real one.
+- `python -m app.seed --with-verification`: policies come with the default seed; this adds an approved verifier (verifier@demo.test, an invented employer), a pending one, and consents (valid, expired, withdrawn, other purpose only) for Kaveri students.

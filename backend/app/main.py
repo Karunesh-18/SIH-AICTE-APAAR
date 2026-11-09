@@ -9,6 +9,7 @@ from app.api import (
     admin,
     apikeys,
     auth,
+    consents,
     dashboards,
     flags,
     institutions,
@@ -16,6 +17,8 @@ from app.api import (
     records,
     reports,
     uploads,
+    verification,
+    verifiers,
 )
 from app.core.config import settings
 from app.db.session import SessionLocal
@@ -49,7 +52,8 @@ def create_app() -> FastAPI:
 
     for r in (auth.router, institutions.router, notifications.router, admin.router,
               uploads.router, records.router, apikeys.router, flags.router,
-              dashboards.router, reports.router):
+              dashboards.router, reports.router, consents.router,
+              verification.router, verifiers.public, verifiers.admin):
         app.include_router(r, prefix="/api/v1")
     return app
 
