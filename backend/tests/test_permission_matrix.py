@@ -16,7 +16,7 @@ EMAIL = {
     "inst_staff": "kaveri.staff@demo.test",
     "verifier": "verifier@demo.test",
 }
-PUBLIC = {("POST", "/api/v1/auth/login"), ("POST", "/api/v1/auth/refresh"),
+PUBLIC = {("POST", "/api/v1/auth/login"), ("POST", "/api/v1/auth/refresh"), ("POST", "/api/v1/auth/logout"),
           ("POST", "/api/v1/verifiers/register"), ("GET", "/api/v1/verify/public-key"),
           ("GET", "/api/v1/verify/{token}")}
 

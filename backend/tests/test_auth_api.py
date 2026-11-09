@@ -65,3 +65,88 @@ def test_language_can_be_changed_but_only_to_known_values(client, login):
 def test_unknown_fields_are_rejected(client):
     r = client.post(LOGIN, json={"email": "a@b.c", "password": "x", "admin": True})
     assert r.status_code == 422
+
+
+# --- refresh-token rotation (ADR-026) ---
+REFRESH = "/api/v1/auth/refresh"
+LOGOUT = "/api/v1/auth/logout"
+
+
+def _login(client):
+    return client.post(LOGIN, json={"email": "admin@demo.test", "password": PASSWORD}).json()
+
+
+def _refresh(client, token):
+    return client.post(REFRESH, json={"refresh_token": token})
+
+
+def _audits(db, action):
+    from sqlalchemy import select
+
+    from app.models.audit import AuditLog
+
+    return db.scalars(select(AuditLog).where(AuditLog.action == action)).all()
+
+
+def test_refresh_rotates_the_refresh_token(client):
+    t = _login(client)
+    r = _refresh(client, t["refresh_token"])
+    assert r.status_code == 200
+    assert r.json()["refresh_token"] != t["refresh_token"]
+
+
+def test_reused_token_outside_grace_is_refused_and_revokes_the_family(client, db, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "refresh_grace_seconds", 0)
+    t = _login(client)
+    new = _refresh(client, t["refresh_token"]).json()["refresh_token"]
+    assert _refresh(client, t["refresh_token"]).status_code == 401  # thief replays the old one
+    assert _refresh(client, new).status_code == 401  # the whole family is dead
+    rows = _audits(db, "AUTH.REFRESH_REUSED")
+    assert len(rows) == 1 and rows[0].entity_type == "user"
+
+
+def test_grace_window_accepts_previous_token_once(client, db):
+    t = _login(client)
+    first = _refresh(client, t["refresh_token"])
+    assert first.status_code == 200
+    again = _refresh(client, t["refresh_token"])  # second tab, same old token
+    assert again.status_code == 200
+    assert again.json()["refresh_token"] not in (t["refresh_token"], first.json()["refresh_token"])
+    assert _refresh(client, first.json()["refresh_token"]).status_code == 200  # tab A still fine
+    assert _refresh(client, t["refresh_token"]).status_code == 401  # third use: reuse
+    assert len(_audits(db, "AUTH.REFRESH_REUSED")) == 1
+
+
+def test_logout_revokes_the_family_and_is_audited(client, db):
+    t = _login(client)
+    assert client.post(LOGOUT, json={"refresh_token": t["refresh_token"]}).status_code == 204
+    assert _refresh(client, t["refresh_token"]).status_code == 401
+    assert _audits(db, "AUTH.LOGOUT")
+
+
+def test_logout_with_a_junk_token_is_harmless(client):
+    assert client.post(LOGOUT, json={"refresh_token": "junk"}).status_code == 204
+
+
+def test_expired_refresh_token_is_refused(client, world):
+    from app.core.security import make_token
+
+    tok = make_token(world["users"]["admin"].id, "refresh", minutes=-1)
+    assert _refresh(client, tok).status_code == 401
+
+
+def test_untracked_refresh_token_is_refused(client, world):
+    from app.core.security import make_token
+
+    assert _refresh(client, make_token(world["users"]["admin"].id, "refresh")).status_code == 401
+
+
+def test_password_reset_revokes_all_sessions(client, login, world):
+    t = _login(client)
+    h = login("admin@demo.test")
+    uid = world["users"]["admin"].id
+    r = client.post(f"/api/v1/admin/users/{uid}/reset-password", headers=h)
+    assert r.status_code == 200, r.text
+    assert _refresh(client, t["refresh_token"]).status_code == 401
