@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated: 2026-11-09. Branch: `phase-7-frontend`.
+Last updated: 2026-11-09 (browser pass partly done). Branch: `phase-7-frontend`.
 
 Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions are in `DECISIONS.md`.
 
@@ -9,7 +9,7 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 - All eight phases of `PLAN.md` are built. Phase status and PR numbers are in `PROGRESS.md`.
 - Backend: 1003 tests pass. Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean.
 - Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
-- Built but not checked in a browser: every screen, both themes, charts, Hindi rendering, dialogs and the QR scan.
+- Browser pass partly done on 2026-11-09 (Playwright on installed Chrome). Most screens are covered, and eight issues were found (see "Browser pass findings"). Still unchecked: see Next step 1.
 - Stubs: email and SMS write to the console. Real SMTP and SMS are not built.
 - Not built: encryption at rest, a job queue, object storage, and a registry lookup against real data.
 - Docker Compose is written but untested (Docker is not installed).
@@ -94,13 +94,27 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 
 ## Not verified
 
-- No screen has been opened in a real browser. The Chrome extension was never connected. Layout, both themes, charts, dialogs, Hindi rendering and the QR scan are all unchecked.
-- The walk-through above is written from the routes and the test. It has not been clicked through.
+- Browser pass is partial. Covered on 2026-11-09: all five demo roles, every list screen in light and dark, Hindi on admin dashboard, review, reports and audit, detail pages for a review flag, an AICTE institution and an institution record, public pages (`/`, `/verify`, `/verifiers/register`, `/verify/<bad token>`), and mobile (390px) landing and login.
+- Not yet checked in a browser: the QR scan, the valid-token verify page, dialogs and mutating flows (upload, consent, verifier request, flag actions, tamper button), the `flags/[id]`, `uploads/[id]` and `rules/[code]` detail pages, Hindi on institution and verifier screens, and a production build.
+- The walk-through above is written from the routes and the test. Only the parts covered above were clicked through.
+- Browser pass scripts are kept outside the repo, so the pass cannot be re-run from here.
 - Docker Compose has not been run. Docker is not installed.
 - Hindi strings for the new screens have no native-speaker review.
 - The scheduler thread has not run in tests. Tests cover only the on and off switch.
 - Email and SMS are console stubs. No real provider is wired.
-- Playwright was not used.
+
+## Browser pass findings (2026-11-09)
+
+Results: no HTTP 4xx or 5xx, no crashes, no horizontal overflow, charts render in dark mode and Hindi, and the bad-token page shows "Could not be verified".
+
+- Hydration mismatch on `/login`, only when the OS colour scheme is dark. React regenerates the tree. The theme toggle label is the likely cause.
+- Base UI warning on `/institution`: a component with `nativeButton=true` renders a non-button element.
+- Hindi gaps on the admin dashboard: region names (East, South, North, West), date format, and status badges show "स्पष्ट (Clear)" with English in brackets.
+- Records status filter shows the raw value `all`.
+- Reports "Report" select truncates its label.
+- Login page shows a "Demo only / Demo accounts" box. This section says demo buttons are off by default. Check whether `frontend/.env.local` sets `NEXT_PUBLIC_DEMO`.
+- Dashboard shows Kaveri as 131/126. The walk-through says 132. Likely row 60 (dated 2027) is excluded. Confirm.
+- Dev only: the Next "Insight" badge overlaps the sidebar footer. The "instant navigation" console error on every route is Next dev noise.
 
 ## Known limits
 
@@ -160,7 +174,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 
 ## Next steps (in order)
 
-1. Browser pass of every screen, as each demo user, in light and dark themes and in Hindi. Record what breaks.
+1. Browser pass. Partly done (see "Browser pass findings"). Remaining: the QR scan, the valid-token verify page, dialogs and mutating flows, the `flags/[id]`, `uploads/[id]` and `rules/[code]` detail pages, Hindi on institution and verifier screens, and a production build. Fix the findings above.
 2. Visual check of the dashboard charts in both themes, against the validated palette.
 3. Run `docker compose up` on a machine with Docker. Fix what fails. Until then, the Docker path stays "untested".
 4. Replace the console stubs with real SMTP and SMS adapters behind the existing adapter interface. Not started.

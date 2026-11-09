@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-11-09. Branch: `phase-7-frontend`.
+Last updated: 2026-11-09 (browser pass partly done). Branch: `phase-7-frontend`.
 
 All eight phases in `docs/PLAN.md` are built. The phases are delivered as a stack of pull requests. Each PR's base is the branch of the PR before it. Merge state is not recorded here.
 
@@ -14,7 +14,7 @@ Run by the maintainer on 2026-11-09:
 
 Not verified:
 
-- No screen has been opened in a real browser. Layout, both themes, charts, Hindi rendering, dialogs and the QR scan are unchecked.
+- Browser pass is partial (2026-11-09, Playwright on installed Chrome). Covered: all five demo roles, list screens in light and dark, Hindi on four admin screens, public pages, and mobile landing and login. Not yet checked: the QR scan, the valid-token verify page, dialogs and mutating flows, some detail pages, Hindi on institution and verifier screens, and a production build. Findings are in `HANDOFF.md`.
 - Docker Compose is untested. Docker is not installed on the dev machine.
 - Hindi strings for the new screens have no native-speaker review.
 
@@ -24,7 +24,7 @@ Known limits are listed in `HANDOFF.md`.
 
 | Phase | Name | PR | Status | Done when (from the plan) |
 |---|---|---|---|---|
-| 0 | Setup | Not recorded | Built | `scripts/test.ps1` runs green. The shell shows in both themes (theme check not done in a browser). |
+| 0 | Setup | Not recorded | Built | `scripts/test.ps1` runs green. The shell shows in both themes (checked in the 2026-11-09 browser pass, with a dark-mode hydration issue on `/login`). |
 | 1 | Foundation | #2 (backend), #3 (frontend shell) | Built | Audit tests and role-scope tests pass. |
 | 2 | Student data | #4 | Built | The seed runs on an empty DB. The DB rejects a duplicate current record. |
 | 3 | Ingestion and checks | #5, #6 | Built | Rule tables pass. The Kaveri file gives 3 flags covering 8 rows. |
