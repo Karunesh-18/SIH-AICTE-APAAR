@@ -49,3 +49,5 @@ export function navFor(role: Role): NavItem[] {
       return [{ href: "/verifier", key: "nav.verifier" }];
   }
 }
+
+export const homeFor = (role: Role): string => navFor(role)[0].href;

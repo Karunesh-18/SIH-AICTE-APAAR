@@ -1,0 +1,15 @@
+{
+  "nav.dashboard": "Dashboard", "nav.review": "Review queue", "nav.reports": "Reports",
+  "nav.verifications": "Verifications", "nav.home": "Home", "nav.upload": "Upload",
+  "nav.records": "Records", "nav.flags": "Flags", "nav.consents": "Consents",
+  "nav.apiKeys": "API keys", "nav.staff": "Staff", "nav.rules": "Rules",
+  "nav.policies": "Purpose policies", "nav.verifiers": "Verifiers", "nav.users": "Users",
+  "nav.windows": "Submission windows", "nav.audit": "Audit log", "nav.clock": "Demo clock",
+  "nav.verifier": "Verification",
+  "app.name": "Waymark APAAR Hub",
+  "app.notice": "Prototype on synthetic data. Not an official AICTE system.",
+  "auth.title": "Sign in", "auth.email": "Email", "auth.password": "Password",
+  "auth.submit": "Sign in", "auth.signingIn": "Signing in…", "auth.signOut": "Sign out",
+  "auth.demo": "Demo accounts", "auth.demoHint": "Fills the form. Every demo account uses the same shared password.",
+  "state.loading": "Loading…", "state.comingSoon": "This screen is built in a later phase."
+}

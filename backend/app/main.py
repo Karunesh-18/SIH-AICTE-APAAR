@@ -2,9 +2,11 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError
 
 from app.api import admin, auth, institutions, notifications
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.services import clock_admin
 
@@ -22,6 +24,9 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Waymark APAAR Hub", version="0.1.0", lifespan=lifespan)
+
+    app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
+                       allow_methods=["*"], allow_headers=["*"])
 
     @app.get("/health")
     def health() -> dict[str, str]:
