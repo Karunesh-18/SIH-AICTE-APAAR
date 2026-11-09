@@ -60,3 +60,41 @@ export type Notification = {
   id: string; subject: string; body: string; related_type: string | null; related_id: string | null;
   read_at: string | null; created_at: string;
 };
+
+export type InstState = "Clear" | "Alert" | "Excess";
+export type DashInstitution = {
+  id: string; name: string; type: string; region: string; region_code: string; state: InstState;
+  enrolled: number; approved_intake: number; allowed: number; flags: Record<string, number>;
+  open_flags: number; last_upload: string | null;
+};
+export type AicteDashboard = {
+  cycle_year: number;
+  tiles: { institutions: number; records: number; open_flags: number; excess: number; alert: number; pending_apaar_share: number };
+  institutions: DashInstitution[];
+};
+export type RegionRow = { id: string; code: string; name: string };
+export type InstitutionRow = { id: string; name: string; type?: string; region_id?: string };
+export type ProgrammeRow = {
+  institution_id: string; institution: string; region: string; institution_type: string; programme: string;
+  level: string; enrolled: number; approved_intake: number; allowed: number;
+};
+export type FlagsTrend = { rows: { month: string; rule: string; count: number }[] };
+export type WindowStatus = {
+  cycle_year: number; opens_at: string; closes_at: string; state: "not_open" | "open" | "closed";
+  submitted: boolean; hours_to_close: number;
+} | null;
+export type TodoFlag = { id: string; rule: string; reason: string; state: string };
+export type InstitutionDashboard = {
+  institution: { id: string; name: string }; cycle_year: number; window: WindowStatus; submitted: boolean;
+  records: { accepted: number; flagged: number; pending_apaar: number };
+  todo: { open_flags: TodoFlag[]; asks: TodoFlag[]; pending_apaar: { record_id: string; row_number: number }[] };
+};
+export type ReportDef = { key: string; title: string; filters: string[] };
+export type SavedReport = { id: string; name: string; report_key: string; filters: Record<string, string | number>; created_at: string };
+export type ReportResult = { columns?: string[]; rows?: Record<string, unknown>[] } & Record<string, unknown>;
+export type AdminWindow = {
+  id: string; cycle_year: number; institution_type: string | null; opens_at: string; closes_at: string;
+  ladder: { step: string; offset_hours: number; audience: "institution" | "officer" | "admin" }[];
+};
+export type CycleResult = { sent: number; skipped: number; late: string[]; flags: number; windows: number };
+export type ClockState = { offset_days: number; now: string };
