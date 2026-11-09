@@ -1,14 +1,14 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { Suspense, useEffect, type ReactNode } from "react";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 import { navFor } from "@/lib/nav";
 
-export default function AppShell({ children }: { children: ReactNode }) {
+function Shell({ children }: { children: ReactNode }) {
   const { user, loading, signOut, t } = useAuth();
   const router = useRouter();
   const path = usePathname();
@@ -51,5 +51,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
+  );
+}
+
+// usePathname/useParams suspend on dynamic routes under Cache Components, so the shell needs a boundary.
+export default function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<main className="p-8 text-muted-foreground">Loading...</main>}>
+      <Shell>{children}</Shell>
+    </Suspense>
   );
 }
