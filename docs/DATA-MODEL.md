@@ -173,3 +173,7 @@ Both should be decided before Phase 4.
 `api_key` (built): institution_id, name, prefix (first 8 characters of the token), key_hash (sha256, unique), scope (`records:submit`), created_by, revoked_at, last_used_at. The token itself is never stored.
 
 Ingestion notes: a row whose name, date of birth or admission date cannot be read is stored with an empty name, `0001-01-01`, or category `UNSPECIFIED` (those columns are NOT NULL) and flagged by R07. Re-uploading creates new versions: the earlier current row gets `is_current` false, `superseded_at`, `superseded_by`, and the new row has `version + 1` and `continues_record_id`. Rows with no APAAR ID are never superseded (no key to match on).
+
+## Phase 4 (no schema change)
+
+Phase 4 adds no tables or columns. It uses `validation_flag.lock_version` and `assignee_id`, `flag_event`, and on `student_record` the existing `version`, `continues_record_id`, `superseded_by`, `superseded_at` and `withdrawn_reason`. A correction adds a row with `version + 1` and the same `upload_id` and `row_number`. A withdrawn record keeps `is_current = true` (ADR-015). System closures have a `flag_event` with `actor_id` null.
