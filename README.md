@@ -12,34 +12,37 @@ Every student record is tied to one APAAR ID. After admissions, an institution u
 
 ## Status
 
-The code in this repo is being built from scratch. Earlier prototypes were not copied (see `docs/DECISIONS.md`, ADR-004). Right now only the scaffold exists. Everything else is proposed.
+The backend has its Phase 1 foundation built: login, roles, the audit chain with verify, the institutions API, the demo clock and notifications. Everything student-related is still proposed. The frontend has the scaffold and the nav map. Its login page and shell are next.
 
 | Part | Status |
 |---|---|
-| FastAPI backend with a `/health` endpoint and a test | Built (scaffold only) |
+| FastAPI backend: `/health`, JWT login and refresh, role guards | Built. Tests pass. |
+| Audit chain with verify and tamper demo | Built. Tests pass. |
+| Institutions API (scoped by role and region) | Built. |
+| Demo clock and in-app notifications, with an outbox | Built. Email is a console stub. |
+| Permission-matrix test over every API route | Built. |
 | Next.js frontend with the role-to-route nav map and its test | Built (scaffold only; the home page is still the starter page) |
-| Test script `scripts/test.ps1` | Written. Not yet confirmed green. |
-| Login, roles, object-level scoping | Proposed |
-| Audit chain with verify and tamper check | Proposed |
-| Institution and region registry | Proposed |
+| Test script `scripts/test.ps1` | Built. Green. |
+| Frontend login, API client and role-aware shell | Proposed (next, Phase 1) |
+| Region admin, user admin | Proposed |
 | Student upload (CSV, XLSX, XLS, JSON) and the API batch endpoint | Proposed |
 | Rules R01 to R07 on upload | Proposed |
 | Registry lookup against a mock registry (R03) | Proposed |
 | Review queue, flag notes, record versions and withdrawal | Proposed |
-| Submission windows, reminders, the simulated clock | Proposed |
+| Submission windows, reminders, late list | Proposed |
 | Dashboards, reports, scheduled rules R09 to R12 | Proposed |
 | Consent, verifier approval, Ed25519 signed results, QR check | Proposed |
 | Near-duplicate names with TF-IDF (R08) | Proposed |
-| English and Hindi text | Proposed |
+| English and Hindi text | Proposed (the API stores a language per user) |
 | `docker compose up` | Proposed. Written later, **untested** (Docker is not installed on the dev machine). |
 
-Phase 0 of 7 is in progress. See `docs/PROGRESS.md`.
+Phase 1 of 7 is in progress. The backend is done. See `docs/PROGRESS.md`.
 
 ## Docs
 - `docs/PLAN.md`: the approved build plan.
 - `docs/ARCHITECTURE.md`: layers, modules, adapters, and the flow of an upload.
-- `docs/DATA-MODEL.md`: tables and key constraints.
-- `docs/API.md`: endpoint outline. All proposed.
+- `docs/DATA-MODEL.md`: tables and key constraints. Built tables are marked.
+- `docs/API.md`: endpoint outline. The "Built" table lists what is in the code.
 - `docs/RULES.md`: the rules R01 to R12.
 - `docs/ROLES.md`: the five roles and object-level scope.
 - `docs/GLOSSARY.md`: terms used across the project.

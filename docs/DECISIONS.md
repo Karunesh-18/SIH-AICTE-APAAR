@@ -9,7 +9,7 @@ Each record below is an Architecture Decision Record (ADR). The format is:
 - **Decision:** what was decided.
 - **Consequences:** what follows from it, good and bad.
 
-Source for these records: `docs/PLAN.md` (settled decisions, grilling rounds 1 to 3).
+Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling rounds 1 to 3). ADR-007 to ADR-011 come from Phase 1 build work.
 
 ## Index
 
@@ -21,6 +21,11 @@ Source for these records: `docs/PLAN.md` (settled decisions, grilling rounds 1 t
 | ADR-004 | No code copied from earlier prototypes. Rebuilt from scratch. | Accepted |
 | ADR-005 | Python 3.11 with venv and pip, not uv and Python 3.12 | Accepted (temporary) |
 | ADR-006 | Docker Compose is written but untested, because Docker is not installed | Accepted |
+| ADR-007 | A permission-matrix test lists every API route | Accepted |
+| ADR-008 | The app refuses a default or short JWT secret outside demo mode | Accepted |
+| ADR-009 | Email goes through a transactional outbox | Accepted |
+| ADR-010 | Refused reads of out-of-scope records are audited | Accepted |
+| ADR-011 | Migrations do not import app types | Accepted |
 
 ---
 
@@ -118,6 +123,78 @@ Source for these records: `docs/PLAN.md` (settled decisions, grilling rounds 1 t
 **Consequences.**
 - Nobody can say the Docker path works until it has been run.
 - The Phase 7 done-when criterion ("a `docker compose up` verified end to end") is not met until a machine with Docker runs it.
+
+---
+
+## ADR-007: A permission-matrix test lists every API route
+
+**Status:** Accepted.
+
+**Context.** Role checks are easy to forget on a new route. A missing check is a silent hole, and a review may not catch it.
+
+**Decision.** `backend/tests/test_permission_matrix.py` is a table of routes against six callers: five roles and an anonymous user. A meta-test fails if any `/api/v1` route is not in the table.
+
+**Consequences.**
+- A new route cannot ship without a row saying who may call it.
+- Every new route adds a row to the matrix. This is a small cost on each change.
+- The matrix checks the role, not the object scope. Scope has its own tests (`test_access.py`).
+
+---
+
+## ADR-008: The app refuses a default or short JWT secret outside demo mode
+
+**Status:** Accepted.
+
+**Context.** The default JWT secret is in the repository. Anyone who knows it can sign tokens for any user.
+
+**Decision.** `backend/app/core/config.py` raises an error at start-up when `DEMO_MODE` is off and `JWT_SECRET` is the default or has fewer than 32 characters. Demo mode keeps the default so a fresh clone runs.
+
+**Consequences.**
+- A deployment with a weak secret does not start. This is intended.
+- Demo mode still accepts the default. Anyone who runs demo mode on a shared network is exposed.
+
+---
+
+## ADR-009: Email goes through a transactional outbox
+
+**Status:** Accepted.
+
+**Context.** Sending email inside a request can fail after the database change has been saved, or send an email for a change that was rolled back.
+
+**Decision.** `services/notify.py` writes an `outbox` row in the same transaction as the change. `dispatch_queued` sends the rows after the commit. A row is tried up to 3 times (`MAX_ATTEMPTS`). Dispatch is idempotent: a sent row is not sent again.
+
+**Consequences.**
+- A sent email always matches a committed change.
+- Dispatch runs in-process after commit. A crash between commit and dispatch leaves the row queued, and a later run sends it.
+- Email is a console stub (`adapters/email.py`). No real provider is wired.
+
+---
+
+## ADR-010: Refused reads of out-of-scope records are audited
+
+**Status:** Accepted.
+
+**Context.** A user who asks for a record outside their scope may be probing. The officer needs to see those attempts.
+
+**Decision.** When `GET /api/v1/institutions/{id}` refuses an out-of-scope institution, the refusal is written to the audit log as `ACCESS.REFUSED`, and the response is 403.
+
+**Consequences.**
+- Refusals show up in the audit log, so an officer can see probing.
+- Only refusals are logged for the institution read. Successful reads and list reads are not audited. This differs from the plan's "single-record views are audited" line for records; that rule applies to the record routes, which are not built yet.
+
+---
+
+## ADR-011: Migrations do not import app types
+
+**Status:** Accepted.
+
+**Context.** A migration that imports `app.db.base.UTCDateTime` or a model class breaks when that code changes. Old migrations then stop running.
+
+**Decision.** Migrations use plain SQLAlchemy column types only. A test checks that upgrade, downgrade and the models agree (`test_migrations.py`).
+
+**Consequences.**
+- Migrations stay runnable after model code changes.
+- Each migration repeats some type details. This is a small cost.
 
 ---
 
