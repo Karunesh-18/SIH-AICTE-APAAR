@@ -33,3 +33,17 @@ const FLAG: Record<string, StatusMeta> = {
 };
 export const flagState = (s: string): StatusMeta =>
   FLAG[s] ?? { labelKey: `flag.state.${s}`, icon: "dot", tone: "neutral" };
+
+const CONSENT: Record<string, StatusMeta> = {
+  active: { labelKey: "consent.status.active", icon: "check", tone: "clear" },
+  expired: { labelKey: "consent.status.expired", icon: "clock", tone: "neutral" },
+  withdrawn: { labelKey: "consent.status.withdrawn", icon: "ban", tone: "neutral" },
+};
+export const consentMeta = (s: string): StatusMeta => CONSENT[s] ?? { labelKey: `consent.status.${s}`, icon: "dot", tone: "neutral" };
+
+/** Outcome of a verification request; a revoked grant reads as Revoked. */
+export function outcomeMeta(outcome: string, revokedAt: string | null): StatusMeta {
+  if (revokedAt) return { labelKey: "outcome.REVOKED", icon: "ban", tone: "alert" };
+  if (outcome === "GRANTED") return { labelKey: "outcome.GRANTED", icon: "check", tone: "clear" };
+  return { labelKey: "outcome.REFUSED", icon: "x", tone: "excess" };
+}

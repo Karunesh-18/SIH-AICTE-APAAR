@@ -97,4 +97,41 @@ export type AdminWindow = {
   ladder: { step: string; offset_hours: number; audience: "institution" | "officer" | "admin" }[];
 };
 export type CycleResult = { sent: number; skipped: number; late: string[]; flags: number; windows: number };
-export type ClockState = { offset_days: number; now: string };
+export type ClockState = { offset_days: number; now: string; demo_mode?: boolean };
+
+// Phase 6: consent and verification
+export type PolicyRead = { purpose: string; allowed_fields: string[]; version: number };
+export type PolicyAdmin = PolicyRead & { note: string | null; updated_at: string };
+export type Policies<P = PolicyRead> = { items: P[]; fields: string[] };
+export type Consent = {
+  id: string; apaar_id: string; purposes: string[]; fields: string[]; source: string;
+  given_at: string; expires_at: string; withdrawn_at: string | null;
+};
+export type VerifierReg = {
+  id: string; org_name: string; org_type: string; contact: string; email: string;
+  requested_purposes: string[]; status: "PENDING" | "APPROVED" | "REJECTED";
+  decided_by: string | null; decision_note: string | null; created_at: string;
+};
+export type VerificationRow = {
+  id: string; outcome: "GRANTED" | "REFUSED"; purpose: string; apaar_id: string;
+  fields_requested: string[]; refusal_reason: string | null; refusal_detail: string[] | null;
+  issued_at: string | null; expires_at: string | null; revoked_at: string | null; created_at: string;
+  verifier?: string; consent_id?: string | null;
+};
+export type VerificationGranted = {
+  id: string; outcome: "GRANTED"; purpose: string; fields: Record<string, unknown>; token: string;
+  qr_url: string; issued_at: string; expires_at: string;
+};
+export type VerificationRefused = {
+  id: string; outcome: "REFUSED"; reason: string; message: string; detail?: string[];
+};
+export type VerificationResult = VerificationGranted | VerificationRefused;
+export type PublicCheck = {
+  status: string; fields: Record<string, unknown> | null; issuer: string | null;
+  issued_at: string | null; expires_at: string | null; purpose: string | null;
+};
+export type PublicKey = { pem: string; jwk: { kid: string; x: string; alg: string }; alg: string };
+export type AuditRow = {
+  id: number; occurred_at: string; actor_id: string | null; actor_role: string | null; action: string;
+  entity_type: string | null; entity_id: string | null; before: unknown; after: unknown;
+};

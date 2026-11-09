@@ -67,13 +67,14 @@ def tamper_audit(_: User = Depends(admin_only), db: Session = Depends(get_db)):
 
 @router.get("/clock")
 def get_clock(_: User = Depends(admin_only)):
-    return {"offset_days": clock.get_offset_seconds() / 86400, "now": clock.now()}
+    return {"offset_days": clock.get_offset_seconds() / 86400, "now": clock.now(),
+            "demo_mode": settings.demo_mode}
 
 
 @router.post("/clock")
 def set_clock(body: ClockIn, user: User = Depends(admin_only), db: Session = Depends(get_db)):
     seconds = clock_admin.set_clock(db, user, body.advance_days, body.reset)
-    return {"offset_days": seconds / 86400, "now": clock.now()}
+    return {"offset_days": seconds / 86400, "now": clock.now(), "demo_mode": settings.demo_mode}
 
 
 # ---- rule versions ------------------------------------------------------------------------------

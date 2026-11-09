@@ -13,3 +13,10 @@ def test_tamper_endpoint_is_off_outside_demo_mode(client, login, monkeypatch):
     h = login("admin@demo.test")
     monkeypatch.setattr(settings, "demo_mode", False)
     assert client.post("/api/v1/admin/dev/tamper-audit", headers=h).status_code == 404
+
+
+def test_clock_reports_demo_mode(client, login, monkeypatch):
+    h = login("admin@demo.test")
+    assert client.get("/api/v1/admin/clock", headers=h).json()["demo_mode"] is True
+    monkeypatch.setattr(settings, "demo_mode", False)
+    assert client.get("/api/v1/admin/clock", headers=h).json()["demo_mode"] is False

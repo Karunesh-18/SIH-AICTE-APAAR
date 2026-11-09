@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import Field, field_validator
 from sqlalchemy.orm import Session
 
-from app.api.deps import fail, require_roles
+from app.api.deps import fail, get_current_user, require_roles
 from app.api.schemas import Strict
 from app.core.config import settings
 from app.db.session import get_db, uow
@@ -103,6 +103,14 @@ def _p(p) -> dict:
 @admin.get("/policies")
 def list_policies(_: User = Depends(admin_only), db: Session = Depends(get_db)):
     return {"items": [_p(p) for p in verifiers.active_policies(db)], "fields": list(FIELDS)}
+
+
+@public.get("/policies")
+def read_policies(_: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Read-only view for any signed-in role: what each purpose may release."""
+    return {"items": [{"purpose": p.purpose, "allowed_fields": p.allowed_fields,
+                       "version": p.version} for p in verifiers.active_policies(db)],
+            "fields": list(FIELDS)}
 
 
 @admin.put("/policies/{purpose}")
