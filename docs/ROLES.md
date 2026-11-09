@@ -36,7 +36,7 @@ Students are not users in v1. Consent is recorded through the institution.
 | Record or withdraw consent | No | No | Own students | Own students | No |
 | Manage API keys | No | No | Own institution | No | No |
 | Manage staff accounts (staff role only: create, rename, deactivate, reset password) | No | No | Own institution | No | No |
-| Verification requests | View all | Scope not set | View requests about own students | View requests about own students | Create (approved only), view own |
+| Verification requests | View all | Own regions | View requests about own students | View requests about own students | Create (approved only), view own |
 | Send a verification request | No | No | No | No | Approved verifiers only |
 
 Notes:
@@ -74,6 +74,11 @@ Student fields are masked in the API serializer for every viewer. Masking is don
 A verifier sees only the fields the consent allows, and nothing more.
 
 Outside-reader reports leave out identity fields altogether.
+
+Flag evidence has its own masking:
+
+- **R08 (near duplicate).** Names inside the evidence of a record held by another institution are masked for institution users (`P******* D*******`). AICTE roles see them in full. The other record is evidence only; it is not linked to the flag.
+- **R05 (same ID at two institutions).** The APAAR ID in the flag is masked. The other institution's name, programme and admission date are shown to the institutions involved, and the alert notification names the institution that uploaded. This is what the code does. The team has not confirmed it (see HANDOFF, open question 8).
 
 ## Open questions
 

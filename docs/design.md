@@ -8,25 +8,29 @@ Student-level data submission, validation, monitoring and consent-based verifica
 ## Built vs proposed
 | Part | Status |
 |---|---|
-| JWT login (access and refresh), role guards, object-level institution scope | Built (backend). Frontend login built, not yet checked in a browser. |
+| JWT login (access and refresh), five roles, object-level institution and region scope | Built. Tested. |
 | Frontend API client, auth context and role-aware shell | Built. Tokens in `localStorage` (prototype only, ADR-013). |
-| Hash-chained audit log with verify and tamper demo | Built (backend) |
-| Institution registry (institutions API and models), region model | Built (backend). Region and user admin proposed. |
-| Submission windows, reminder ladder, compliance dashboards, reports (backend and screens, Phase 5) | Built. Screens not checked in a browser. Charts use the validated palette in `app/globals.css` (light on #ffffff, dark on #1c2027); light slots 3 to 5 are under 3:1 so every chart has direct labels and a table view. |
-| Notifications (in-app, with a transactional outbox) | Built (backend). The outbox is sent after commit, by the scheduler and by `POST /admin/outbox/dispatch`. Email is a console stub. |
-| R08 near duplicate, shared name similarity | Built (backend) |
-| Users and staff management | Built (backend) |
-| Demo clock (advance and reset) | Built (backend) |
-| Student, flag, rule and registry tables; synthetic seed | Built (tables and seed). No ingestion or checks yet. |
-| Review queue, flag detail with per-rule evidence, institution flag reply, record correct and withdraw, notification bell (30 s poll) | Built (frontend). Not checked in a browser. |
-| Student upload (CSV/XLSX/XLS/JSON and REST API with API keys), rules R01 to R07, rule versions | Built (backend and screens). Screens pass vitest, tsc, eslint and `next build` but were not checked in a browser. In-process background task, not a queue. |
-| APAAR validation through a registry adapter | Proposed; live lookup needs authorisation from the issuing authority |
-| Intake-cap, cross-institution duplicate and consistency checks | Proposed |
-| TF-IDF near-duplicate name flag | Proposed (suggestion only) |
-| Privacy masking of student fields in the API | Proposed |
-| Consent-based verification, signed result, public check API | Built (backend and frontend, Phase 6). Screens: not checked in a browser. |
+| Hash-chained audit log with verify and tamper demo | Built. Tested. |
+| Institution registry, region model, institutions API | Built. Tested. |
+| Region and user admin, staff management, API keys | Built. Tested. |
+| Demo clock (advance and reset) | Built. Tested. |
+| Notifications (in-app, with a transactional outbox) | Built. Email is a console stub. |
+| Student, flag, rule and registry tables; synthetic seed (`--demo`) | Built. Tested. |
+| Student upload (CSV, XLSX, XLS, JSON) and REST batch with API keys | Built. Tested. |
+| Rules R01 to R07 on upload, rule versions with edit, diff and revert | Built. Tested. |
+| Review queue, flag actions with notes, institution flag reply, record correction and withdrawal | Built. Tested. |
+| R08 near duplicate, shared TF-IDF name similarity | Built. Tested. Threshold is a placeholder. |
+| R05 same ID at two institutions | Built. Tested. |
+| Submission windows, reminder ladder, scheduled rules R09 to R12, dashboards and reports | Built. Tested. Thresholds are placeholders. Charts use the palette in `frontend/app/globals.css`. |
+| Consent ledger, purpose policies, verifier approval, Ed25519 signed results, public check API | Built. Tested. |
+| Frontend screens for all roles, English and Hindi text, light and dark themes | Built. Types, lint, unit tests and build pass. Not checked in a browser. |
+| Privacy masking of student fields in the API serializer | Built. Tested. |
+| APAAR validation against a live registry | Proposed. Needs authorisation from the issuing authority. R03 runs on a mock. |
+| Real email (SMTP) and SMS | Proposed. Console stubs. |
+| Encryption at rest, a job queue, object storage | Proposed. Not built. |
+| `docker compose up` | Written. **Untested** (Docker is not installed on the dev machine). |
 
-Built so far in this repo: project scaffold, `/health`, the Phase 1 backend (auth, audit chain, institutions API, clock, notifications), the Phase 1 frontend login, API client and shell, the Phase 2 student data tables with the synthetic seed, and the design tokens. Upload, the checks and the record and flag screens are proposed.
+Known limits and open questions are in `HANDOFF.md`. The data model is in `DATA-MODEL.md`.
 
 ## Data per student
 APAAR ID (unique key); programme, year, admission date; approved intake and actual enrolment (per programme); supernumerary seats; NRI category; OCI status; foreign national (FN) status; consent flag and source.
@@ -34,13 +38,14 @@ APAAR ID (unique key); programme, year, admission date; approved intake and actu
 ## Validation rules
 | Rule | Catches | Result |
 |---|---|---|
-| ID format | Missing ID, or not 12 digits | Fix and resubmit |
-| Registry lookup | ID not found or details do not match | Held for review |
-| Duplicate in file | Same ID twice in one upload | Flag |
-| Across institutions | Same ID active at two institutions | Alert both |
+| ID format | Missing ID, or not 12 digits | Flag. Missing ID is held as pending APAAR. |
+| Registry lookup | ID not found or details do not match | Flag. Held for review. |
+| Duplicate in file | Same ID twice in one upload | Flag. The first row stays current (ADR-012). |
+| Across institutions | Same ID active at two institutions | Flag. Both institutions are notified. |
 | Intake cap | Enrolment above approved intake plus supernumerary seats | Flag with count |
 | Near duplicate | Similar name and date of birth, different ID | Suggestion only |
 | Consistency | Contradicting fields or mandatory fields missing | Flag |
+| Scheduled patterns | Late submission, enrolment jump, pending share, late bulk submission | Flag. Thresholds are placeholders. |
 
 Example: intake 120, supernumerary seats 6, allowed 126, actual 132, so 6 records go to an officer. Nothing is rejected automatically. A student without an APAAR ID yet is held as "pending APAAR", not rejected.
 
@@ -50,4 +55,4 @@ Advisory only; every flag shows its rule; synthetic data only; method names stat
 ## Data model sketch
 `institution` 1-n `programme` (approved_intake, supernumerary_seats) 1-n `student_record` (apaar_id, status, nri, oci, fn, admission_date, consent) ; `validation_flag` (record, rule, reason, state) ; `verification_request` (verifier, purpose, consent_ref, result, signed_token) ; `audit_log` (hash-chained).
 
-The Phase 1 tables (`region`, `institution`, `programme`, `user`, `user_region`, `audit_log`, `system_config`, `notification`, `outbox`) and the Phase 2 tables (`upload`, `student_record`, `validation_flag`, `flag_record`, `flag_event`, `rule`, `rule_version`, `registry_entry`) are built. See `DATA-MODEL.md`.
+All tables in the plan are built: the Phase 1 tables (`region`, `institution`, `programme`, `user`, `user_region`, `audit_log`, `system_config`, `notification`, `outbox`), the Phase 2 student and rule tables (`upload`, `student_record`, `validation_flag`, `flag_record`, `flag_event`, `rule`, `rule_version`, `registry_entry`), and the consent, verifier, policy and API key tables. See `DATA-MODEL.md`.
