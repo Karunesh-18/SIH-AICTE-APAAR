@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-09.
 
-Status: proposed. None of the rules are built yet. R01 to R07 come first (Phase 3). R09 to R12 come in Phase 5. R08 comes in Phase 7.
+Status: R01 to R12 are built in the backend. R08 (Phase 7) is described in its own section below.
 
 ## How the rules work
 
@@ -67,7 +67,7 @@ The thresholds in R10, R11 and R12 are placeholders. AICTE is expected to set th
 - **Scope:** upload.
 - **Params:**
   - `registry_enabled`: on or off. The rule runs only when a registry adapter is connected. In the demo this is `MockRegistry`.
-  - Name match: a loose comparison that treats a close match as a match. The threshold is not set in the plan.
+  - Name match: the shared TF-IDF cosine similarity (`name_threshold`, default 0.8). A score at or above the threshold is a match.
   - Date of birth comparison rule: not set in the plan.
 - **Evidence:** the file value, the registry value, the similarity score for the name, row number.
 - **Outcome:** The record is held for review. A close name match is not flagged.
@@ -118,14 +118,14 @@ The thresholds in R10, R11 and R12 are placeholders. AICTE is expected to set th
 ## R08: Near duplicate
 
 - **Catches:** Two records with similar names, the same date of birth, and different or missing APAAR IDs. They may be the same person.
-- **Scope:** cross.
-- **Params:**
-  - Method: TF-IDF over character n-grams (2 to 4), cosine similarity.
-  - Similarity threshold: not set in the plan.
-  - Date of birth must match.
-- **Evidence:** both records, the similarity score.
-- **Outcome:** A suggestion only. An officer links the records or dismisses the suggestion. The platform never merges or rejects.
-- **Example:** "These two records have similar names (similarity 0.91) and the same date of birth but different APAAR IDs. They may be the same person. This is a suggestion only."
+- **Scope:** cross. Runs when an upload arrives and when a record is corrected (`recheck_record`).
+- **Compares:** the current, non-withdrawn records of the same cycle, at the same institution and at every other institution. A pair is raised once. A pair of two records that were both stored earlier is not new and is not raised. A record of another cycle never matches.
+- **Params:** `threshold`, default 0.85 (a placeholder for AICTE to set). Method: TF-IDF over character n-grams of length 2 to 4, cosine similarity (`domain/similarity.py`, scikit-learn). The score depends only on the two names, so it can be recomputed from the evidence. Date of birth must be equal. If both records carry the same APAAR ID the rule stays silent (R04 or R05 speak for that).
+- **Evidence:** both records as `a` and `b` (record id, masked APAAR ID or none, name, institution, row number), `score`, `threshold`. The stored sentence names the masked IDs, the score and the threshold, never a name.
+- **Masking:** names inside the evidence of a record held by another institution are masked in the API for institution users (`P******* D*******`). AICTE roles see them. The other institution's record is evidence only; it is not linked to this flag.
+- **Outcome:** A suggestion only. An officer links the records (`POST /flags/{id}/link`, resolves the flag) or dismisses it. The platform never merges or rejects. A dismissed pair is not raised again after a correction. Region officers are told, as for R05 and R06.
+- **Example:** "Two records have a very similar name and the same date of birth. Rows 9, 10. ids: XXXX XXXX 1017 / XXXX XXXX 1018; score: 0.94; threshold: 0.85."
+- **Known limit:** the comparison starts from the date of birth, so a pair with a mistyped date of birth is not found.
 
 ## R09: Late or missing submission
 

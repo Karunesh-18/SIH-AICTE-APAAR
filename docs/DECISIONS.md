@@ -345,3 +345,27 @@ These are settled in `docs/PLAN.md`. They are listed here so that they are easy 
 **Status.** Accepted.
 
 **Decision.** `services/signing.py` loads an Ed25519 private key from `VERIFY_KEY_PATH` (default `backend/keys/verify_ed25519.pem`). If the file is missing it is generated on first use, created exclusively (`O_EXCL`, mode 0600 where the OS honours it) so two workers cannot overwrite each other. `keys/` is gitignored (a test checks the ignore line). Only the public key is served: `GET /api/v1/verify/public-key` returns PEM and JWK. There is one key; rotation (a key set selected by `kid`) is not built, so replacing the key invalidates every issued token. The key is not encrypted at rest: a production deployment would hold it in a KMS or HSM. Tests use a throwaway key per test.
+
+---
+
+## ADR-023: R08 near duplicate and shared similarity
+
+**Status.** Accepted.
+
+**Decision.** `domain/similarity.py` scores two names with TF-IDF over character n-grams (2 to 4) and cosine similarity, fitted on the two strings only, so the number depends on nothing else and can be reproduced from a flag's evidence. R03's loose name match uses the same function (the difflib ratio is gone). `domain/rules.r08_near_duplicate` takes `Person` values (this upload's rows plus stored records with the same date of birth) and returns one draft per pair. The service looks up stored records by date of birth, cycle and non-withdrawn, so the comparison is a bounded query, not a scan of all records. Evidence carries names; the API masks the names of another institution's record for institution users (`api/masking.py`). Only records of the flagged institution are linked to the flag. After a correction the pair is not raised again if any R08 flag, a dismissed one included, already covers it (checked by record id and by the version it replaces). Limits: dates of birth must match exactly; the score is per pair, so a large group with one date of birth costs O(n squared) comparisons; the threshold 0.85 is a placeholder.
+
+---
+
+## ADR-024: The outbox is dispatched after commit
+
+**Status.** Accepted.
+
+**Decision.** `notify.dispatch_now(db)` drains the outbox through one module-level adapter (`ConsoleEmail`; `set_adapter` swaps it, tests use a recorder). It is called after the commit of upload processing (including a rejected upload), flag actions, corrections and withdrawals, verification requests, `run_cycle`, the anomaly run, in every scheduler tick, and on demand by `POST /admin/outbox/dispatch`. It never raises: adapter errors increment `attempts` (status FAILED after `MAX_ATTEMPTS`), and a database error is logged and rolled back. An email that cannot be sent is never an error for the person who triggered it. Retries happen on the next call, so a failed message is retried at the next scheduler tick. Limits: dispatch runs in the request or background task that caused it, in process; two workers could pick up the same row (a single process is assumed, as for the scheduler).
+
+---
+
+## ADR-025: User and staff management
+
+**Status.** Accepted.
+
+**Decision.** `services/users.py` creates, updates, deactivates and resets passwords; every change is audited with before and after values and never a password or hash. Accounts are deactivated, not deleted. AICTE admin manages all roles except `VERIFIER` (verifiers register and are approved on their own screens). An institution admin manages only `INSTITUTION_STAFF` of its own institution: the role and the institution are fixed by the route, not read from the body. A path naming another institution is a 403 and an audited refusal; a user outside that scope is a 404. Request bodies forbid unknown fields, so `password_hash`, `id` or `is_active` on create cannot be smuggled in. Passwords: at least 10 characters; the published demo password is refused outside demo mode. A password may be left out, in which case a random 16-character temporary password is generated and returned once; it is the only time it is visible. There is no forced change at first login (no column for it; not built). Guards: nobody can deactivate themselves or change their own role, the last active AICTE admin cannot be deactivated or demoted, email is unique ignoring case and stored lower-case, regions apply only to officers and are cleared when the role changes.

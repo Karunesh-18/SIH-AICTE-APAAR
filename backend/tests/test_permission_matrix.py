@@ -102,6 +102,17 @@ MATRIX = {
     ("PUT", "/api/v1/admin/windows/{window}"): row(admin=200),
     ("POST", "/api/v1/admin/windows/run-cycle"): row(admin=200),
     ("POST", "/api/v1/admin/anomaly/run"): row(admin=200),
+    ("POST", "/api/v1/admin/outbox/dispatch"): row(admin=200),
+    ("GET", "/api/v1/admin/users"): row(admin=200),
+    ("POST", "/api/v1/admin/users"): row(admin=201),
+    ("PATCH", "/api/v1/admin/users/{muser}"): row(admin=200),
+    ("POST", "/api/v1/admin/users/{muser}/reset-password"): row(admin=200),
+    ("GET", "/api/v1/institutions/{kaveri}/staff"): row(inst_admin=200),
+    ("GET", "/api/v1/institutions/{northfield}/staff"): row(),  # not their institution: refused
+    ("POST", "/api/v1/institutions/{kaveri}/staff"): row(inst_admin=201),
+    ("PATCH", "/api/v1/institutions/{kaveri}/staff/{muser}"): row(inst_admin=200),
+    ("DELETE", "/api/v1/institutions/{kaveri}/staff/{muser}"): row(inst_admin=200),
+    ("POST", "/api/v1/institutions/{kaveri}/staff/{muser}/reset-password"): row(inst_admin=200),
     ("POST", "/api/v1/records/{record}/withdraw"): row(admin=200, inst_admin=200, inst_staff=200),
     ("POST", "/api/v1/consents"): row(admin=201, inst_admin=201, inst_staff=201),
     ("GET", "/api/v1/consents"): row(admin=200, officer_south=200, inst_admin=200, inst_staff=200),
@@ -125,6 +136,12 @@ WINDOW = {"cycle_year": 2026, "opens_at": "2026-06-01T00:00:00Z",
           "closes_at": "2026-09-30T00:00:00Z",
           "ladder": [{"step": "T0", "offset_hours": 0, "audience": "institution"}]}
 BODIES = {
+    ("POST", "/api/v1/admin/users"): {"email": "m.officer@demo.test", "full_name": "M",
+                                      "role": "AICTE_OFFICER", "regions": ["SOUT"]},
+    ("PATCH", "/api/v1/admin/users/{muser}"): {"full_name": "Matrix"},
+    ("POST", "/api/v1/institutions/{kaveri}/staff"): {"email": "m.staff@demo.test",
+                                                      "full_name": "M"},
+    ("PATCH", "/api/v1/institutions/{kaveri}/staff/{muser}"): {"full_name": "Matrix"},
     ("POST", "/api/v1/reports"): {"name": "m", "report_key": "category_counts", "filters": {}},
     ("POST", "/api/v1/admin/windows"): WINDOW,
     ("PUT", "/api/v1/admin/windows/{window}"): WINDOW,
@@ -214,7 +231,7 @@ def test_matrix(client, login, db, world, rules, method, tpl, role, expected):
     pending_v.status = "PENDING"
     db.commit()
     path = tpl.format(consent=consent_id, vreg=pending_v.id, vreq=vreq, flag=flag.id, kaveri=world["kaveri"].id, northfield=world["northfield"].id,
-                      notification=_admin_notification(db, world), upload=up, record=record,
+                      notification=_admin_notification(db, world), muser=world["users"]["inst_staff"].id, upload=up, record=record,
                       key=key, report="category_counts", window=window_id)
     headers = {} if role == "anon" else login(EMAIL[role])
     kw = {}
@@ -242,7 +259,7 @@ def test_every_route_is_in_the_matrix():
         "{northfield}", "{institution_id}").replace(
         "{notification}", "{notification_id}").replace("{upload}", "{upload_id}").replace(
         "{record}", "{record_id}").replace("{flag}", "{flag_id}").replace(
-        "/templates/csv", "/templates/{fmt}").replace("/templates/xlsx", "/templates/{fmt}").replace("{key}", "{key_id}").replace("{report}", "{key}").replace("{window}", "{window_id}").replace(
+        "/templates/csv", "/templates/{fmt}").replace("/templates/xlsx", "/templates/{fmt}").replace("{muser}", "{user_id}").replace("{key}", "{key_id}").replace("{report}", "{key}").replace("{window}", "{window_id}").replace(
         "/rules/R02", "/rules/{code}").replace("{consent}", "{consent_id}").replace(
         "{vreg}", "{verifier_id}").replace("{vreq}", "{request_id}").replace(
         "/policies/EMPLOYMENT", "/policies/{purpose}")) for (m, t) in MATRIX} | PUBLIC

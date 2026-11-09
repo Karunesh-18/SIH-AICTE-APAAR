@@ -12,7 +12,7 @@ from app.db.session import get_db, uow
 from app.models.consent import FIELDS, PURPOSES
 from app.models.enums import AICTE_ROLES, INSTITUTION_ROLES, Role
 from app.models.user import User
-from app.services import ratelimit, signing, verification
+from app.services import notify, ratelimit, signing, verification
 from app.services.errors import Conflict, Forbidden, NotFound, RateLimited
 
 router = APIRouter(tags=["verification"])
@@ -34,9 +34,11 @@ def create(body: VerificationIn, user: User = Depends(verifier_only),
            db: Session = Depends(get_db)):
     try:
         with uow(db):
-            return verification.request_verification(db, user, **body.model_dump())
+            out = verification.request_verification(db, user, **body.model_dump())
     except (Forbidden, RateLimited) as e:
         raise fail(db, user, e, "verification_request", "new") from None
+    notify.dispatch_now(db)
+    return out
 
 
 @router.get("/verifications")

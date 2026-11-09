@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import _bearer, get_current_user, institution_or_403, refuse, require_roles
+from app.api.masking import _mask_name, mask_evidence
 from app.api.schemas import Strict
 from app.api.uploads import upload_out
 from app.db.session import get_db, uow
@@ -24,10 +25,6 @@ from app.services.access import can_access_institution
 router = APIRouter(tags=["records"])
 reader = require_roles(*AICTE_ROLES, *INSTITUTION_ROLES)
 Status = Literal["submitted", "valid", "flagged", "pending_apaar", "withdrawn"]
-
-
-def _mask_name(name: str) -> str:
-    return " ".join(w[0] + "*" * (len(w) - 1) for w in name.split())
 
 
 def mask_record(rec: dict, viewer, owner_institution_id: str) -> dict:
@@ -95,7 +92,7 @@ def get_record(record_id: str, user: User = Depends(reader), db: Session = Depen
                         "upload_id": v.upload_id, "status": v.status,
                         "superseded_at": v.superseded_at} for v in versions]
     out["flags"] = [{"id": f.id, "rule_code": f.rule_code, "state": f.state, "reason": f.reason,
-                     "evidence": f.evidence} for f in flags]
+                     "evidence": mask_evidence(f.evidence, user)} for f in flags]
     return out
 
 

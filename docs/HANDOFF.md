@@ -60,6 +60,7 @@ cd backend
 ```
 
 - To use a database other than `backend/apaar.db`, set `DATABASE_URL` first, for example `$env:DATABASE_URL = "sqlite:///./demo.db"`. Set it for both commands.
+- **One command for the whole demo:** `.\.venv\Scripts\python -m app.seed --demo` (after `alembic upgrade head`). It empties the database, seeds, runs the checks, adds the submission window, the verifiers and the consents, and resets the demo clock. Same result every time apart from ids and timestamps. Phase 7 added the end-to-end test `tests/test_e2e_demo_cases.py` (the ten cases through the HTTP API).
 - A plain `app.seed` refuses a database that already has institutions. To empty every table and seed again, run `.\.venv\Scripts\python -m app.seed --reset`.
 - The seed creates 15 fictional institutions, 5 demo users (`admin@`, `officer@`, `inst-admin@`, `staff@` and `verifier@demo.test`, password `Demo@1234`), 12 rules at version 1, the mock registry, and raw records for the demo cases from the idea doc. It writes no flags.
 - Every seeded APAAR ID starts with `9999` (ADR-014).

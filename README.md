@@ -37,7 +37,11 @@ The backend has its Phase 1 foundation built: login, roles, the audit chain with
 | Phase 5 screens: AICTE dashboard with intake and flags-by-rule charts, institution detail, institution home status, reports (run, CSV export, save), submission windows and demo clock admin, demo clock banner | Built (frontend). Vitest, tsc, eslint and `next build` pass. Not checked in a browser. |
 | Consent ledger, verifier approval, purpose policies, Ed25519 signed results, public check API | Built (backend, Phase 6). Tests pass. |
 | Consent and verification screens: public check page with QR target, verifier registration, verifier workspace with QR code, consent entry, verification lists, verifier approval, purpose policies, audit log with chain check | Built (frontend, Phase 6). Unit tests, tsc, eslint and `next build` pass. Not checked in a browser. |
-| Near-duplicate names with TF-IDF (R08) | Proposed |
+| Near-duplicate names with TF-IDF (R08) | Built (backend) |
+| Email dispatch from the outbox after commit, on a timer and on demand | Built (backend). The adapter is the console stub. |
+| User and staff management (AICTE admin, institution admin) | Built (backend). The screens are not built. |
+| `python -m app.seed --demo` (one-command demo data) | Built |
+| Ten demonstration cases as one end-to-end test | Built (backend, through the HTTP API) |
 | English and Hindi text | Proposed (the API stores a language per user) |
 | `docker compose up` | Proposed. Written later, **untested** (Docker is not installed on the dev machine). |
 

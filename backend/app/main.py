@@ -17,6 +17,7 @@ from app.api import (
     records,
     reports,
     uploads,
+    users,
     verification,
     verifiers,
 )
@@ -53,7 +54,8 @@ def create_app() -> FastAPI:
     for r in (auth.router, institutions.router, notifications.router, admin.router,
               uploads.router, records.router, apikeys.router, flags.router,
               dashboards.router, reports.router, consents.router,
-              verification.router, verifiers.public, verifiers.admin):
+              verification.router, verifiers.public, verifiers.admin,
+              users.admin_router, users.staff_router):
         app.include_router(r, prefix="/api/v1")
     return app
 

@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-09.
 
-Status: proposed. The role names are in `frontend/lib/nav.ts`. The permission checks are not built yet. The plan requires a role-by-endpoint test matrix (Phase 1).
+Status: built in the backend and checked by `tests/test_permission_matrix.py`. Role names are in `frontend/lib/nav.ts`.
 
 ## The five roles
 
@@ -31,11 +31,11 @@ Students are not users in v1. Consent is recorded through the institution.
 | Edit rules, diff, revert | Yes | No | No | No | No |
 | Edit purpose policies | Yes | No | No | No | No |
 | Approve or reject verifiers | Yes | No | No | No | No |
-| Manage users, regions, windows, clock | Yes | No | No | No | No |
+| Manage users (any role except verifier), regions, windows, clock | Yes | No | No | No | No |
 | Read and verify the audit log | Yes | No | No | No | No |
 | Record or withdraw consent | No | No | Own students | Own students | No |
 | Manage API keys | No | No | Own institution | No | No |
-| Manage staff accounts | No | No | Own institution | No | No |
+| Manage staff accounts (staff role only: create, rename, deactivate, reset password) | No | No | Own institution | No | No |
 | Verification requests | View all | Scope not set | View requests about own students | View requests about own students | Create (approved only), view own |
 | Send a verification request | No | No | No | No | Approved verifiers only |
 
