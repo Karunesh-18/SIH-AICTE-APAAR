@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Waymark APAAR Hub: frontend
 
-## Getting Started
+Next.js 16 (App Router), TypeScript, Tailwind v4, shadcn/ui, TanStack Query and Table, Recharts. Prototype on synthetic data; not an official AICTE system. The API is the FastAPI app in `../backend`.
 
-First, run the development server:
+Next 16 differs from older versions. Read `node_modules/next/dist/docs/` before using a Next API.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Run
+
+```
+cd frontend
+npm install
+npm run dev        # http://localhost:3000, expects the API on http://localhost:8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Start the backend first (`cd backend; .\.venv\Scripts\python -m uvicorn app.main:app --reload`). For demo accounts run `python -m app.seed --demo` there; the login page lists them.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Default | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api/v1` | API base URL |
+| `NEXT_PUBLIC_DEMO` | on | Set to `0` to hide the demo-account buttons on the login page |
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm test` | Vitest (pure logic and a few components) |
+| `npx tsc --noEmit` | Type check |
+| `npm run lint` | ESLint |
+| `npm run gen:api` | Regenerate OpenAPI types (needs a running server; response types are otherwise hand-written in `lib/types.ts`) |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `app/` routes. `app/page.tsx` is the public landing page; `app/(app)/` is the signed-in shell (role-scoped nav); `app/verify/` and `app/verifiers/register/` are public.
+- `components/` shared UI. `components/ui/` is shadcn.
+- `lib/` pure logic with tests in `lib/__tests__/`: API client with token refresh (`api.ts`), auth and language context (`auth.tsx`, `lang.ts`), role navigation (`nav.ts`), i18n (`i18n/en.json`, `i18n/hi.json`).
+- `.impeccable/surfaces/` design briefs; `PRODUCT.md` is the product and brand contract.
 
-## Deploy on Vercel
+## Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Strings go through `t()`; English and Hindi keys must match (a test enforces it, and another checks every literal key exists). The language choice is saved to the account for signed-in users and to `localStorage` on public pages.
+- Authorisation is enforced by the server. The UI hides things for convenience only.
+- Nothing here has been checked in a real browser by automated tooling; see `../docs/HANDOFF.md` for what is verified.

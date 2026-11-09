@@ -59,19 +59,19 @@ function Detail({ id }: { id: string }) {
             {prog.isError ? <QueryError error={prog.error} onRetry={() => prog.refetch()} /> : prog.isPending ? <Skeleton className="h-40 w-full" /> : (
               <>
                 {mine.length > 0 && <IntakeChart rows={mine.map((r) => ({ id: r.programme, name: r.programme, enrolled: r.enrolled, allowed: r.allowed }))} />}
-                <DataTable columns={progCols} data={mine} labels={{ ...labels, empty: t("chart.empty") }} />
+                <DataTable columns={progCols} caption={t("dash.table")} data={mine} labels={{ ...labels, empty: t("chart.empty") }} />
               </>
             )}
           </section>
           <section aria-labelledby="f-h" className="flex flex-col gap-3">
             <h2 id="f-h" className="font-semibold">{t("instd.flags")}</h2>
-            <DataTable columns={flagCols} data={flags.data?.items ?? []} loading={flags.isPending}
+            <DataTable columns={flagCols} caption={t("nav.flags")} data={flags.data?.items ?? []} loading={flags.isPending}
                        error={flags.isError ? t("error.generic") : null} onRetry={() => flags.refetch()}
                        labels={{ ...labels, empty: t("instd.flagsEmpty") }} />
           </section>
           <section aria-labelledby="u-h" className="flex flex-col gap-3">
             <h2 id="u-h" className="font-semibold">{t("instd.uploads")}</h2>
-            <DataTable columns={upCols} data={uploads} loading={ups.isPending}
+            <DataTable columns={upCols} caption={t("nav.upload")} data={uploads} loading={ups.isPending}
                        error={ups.isError ? t("error.generic") : null} onRetry={() => ups.refetch()}
                        labels={{ ...labels, empty: t("instd.uploadsEmpty") }} />
           </section>

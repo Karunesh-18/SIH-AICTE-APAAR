@@ -187,7 +187,7 @@ export function VerifierWorkspace() {
 
       <section aria-labelledby="mine-h" className="flex flex-col gap-3">
         <h2 id="mine-h" className="text-base font-semibold">{t("vr.mine")}</h2>
-        <DataTable columns={columns} data={mine.data?.items ?? []} loading={mine.isPending} onRetry={() => mine.refetch()}
+        <DataTable columns={columns} caption={t("nav.verifications")} data={mine.data?.items ?? []} loading={mine.isPending} onRetry={() => mine.refetch()}
           error={mine.isError ? t("error.generic") : null}
           labels={{ empty: t("vr.mineEmpty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />
       </section>

@@ -62,7 +62,7 @@ function Keys() {
         </div>
         <Button type="submit" disabled={create.isPending || !inst}>{t("keys.create")}</Button>
       </form>
-      <DataTable columns={columns} data={q.data ?? []} loading={q.isPending && !!inst}
+      <DataTable columns={columns} caption={t("nav.apiKeys")} data={q.data ?? []} loading={q.isPending && !!inst}
                  error={q.isError ? (q.error.status === 403 ? t("error.forbidden") : t("error.generic")) : null}
                  onRetry={() => q.refetch()}
                  labels={{ empty: t("keys.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />

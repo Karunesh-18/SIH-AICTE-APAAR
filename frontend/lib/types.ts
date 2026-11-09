@@ -135,3 +135,10 @@ export type AuditRow = {
   id: number; occurred_at: string; actor_id: string | null; actor_role: string | null; action: string;
   entity_type: string | null; entity_id: string | null; before: unknown; after: unknown;
 };
+
+export type UserRow = {
+  id: string; email: string; full_name: string; role: string; institution_id: string | null;
+  institution_name: string | null; is_active: boolean; language: string; regions: string[];
+};
+export type UserList = { items: UserRow[]; total: number };
+export type UserSaved = { user: UserRow; temporary_password?: string };

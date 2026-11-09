@@ -82,7 +82,7 @@ export function AicteDashboardView() {
             {active && <Button type="button" variant="outline" size="sm" onClick={() => { setRegion(""); setType(""); setState(""); }}>{t("filter.clear")}</Button>}
           </form>
 
-          <DataTable columns={columns} data={dash.data?.institutions ?? []} loading={dash.isPending}
+          <DataTable columns={columns} caption={t("dash.table")} data={dash.data?.institutions ?? []} loading={dash.isPending}
                      labels={{ empty: t("dash.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />
 
           {dash.data && dash.data.institutions.length > 0 && (

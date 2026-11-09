@@ -11,6 +11,9 @@ Status: R01 to R12 are built in the backend. R08 (Phase 7) is described in its o
 - Parameters live in the `rule_version` table as JSON. Changing a rule creates a new version. A flag keeps the version it was raised under.
 - Each rule has a `message_en` and a `message_hi`.
 - Rules only flag. They never reject, correct or penalise anything. An officer decides.
+- `hard_stop` is stored per rule version and shown on the flag detail. It is display only. No rule uses it to refuse, hold or change data.
+- A missing APAAR ID (R01) raises a flag and sets the record to `pending_apaar`. The record is counted on its own. It is not rejected.
+- R05 and R08 are cross-institution rules. The APAAR ID in an R05 flag is masked. The other institution's name is shown to the institutions involved. R08 masks names of another institution's record for institution users (see ROLES.md, Masking).
 
 ### Scope
 
@@ -49,7 +52,7 @@ The thresholds in R10, R11 and R12 are placeholders. AICTE is expected to set th
 - **Evidence:** row number, programme, cycle year.
 - **Outcome:** The flag asks the institution to add the ID. The record is held as `pending_apaar`. It is counted on its own and is not rejected. When an ID is added, the checks run again.
 - **Example:** "Row 23 has no APAAR ID. The record is held as pending APAAR until an ID is added. Nothing else in the file is affected."
-- **Note:** The idea doc says a missing ID is "returned to the institution to fix" and also "held as pending APAAR, not rejected." This file follows the second reading. The team should confirm it. See `HANDOFF.md`.
+- **Decided:** The idea doc says a missing ID is "returned to the institution to fix" and also "held as pending APAAR, not rejected." The built rule follows the second reading: an R01 flag and status `pending_apaar`. See `HANDOFF.md`, open question 1.
 
 ## R02: ID format
 
@@ -94,7 +97,8 @@ The thresholds in R10, R11 and R12 are placeholders. AICTE is expected to set th
 - **Evidence:** both institutions, both programmes, both admission dates.
 - **Outcome:** Both institutions get an alert. An officer gets a flag. The platform does not decide which record is right.
 - **Example:** "This APAAR ID is listed at two institutions in this cycle: Kaveri Valley College (MBA, admitted 12 July) and Northfield Institute (MBA, admitted 3 October). If the student transferred, mark one record withdrawn."
-- **Open question:** Does the alert show the other institution's name to the first institution? See `ROLES.md`.
+- **Built as:** The flag masks the APAAR ID. Its evidence carries the other institution's name, programme and admission date. The alert to the other institution names the uploading institution. The team has not confirmed that these names may be shown (HANDOFF, open question 8).
+- **Runs:** when a record arrives and when that record is corrected. It does not run again when the other side changes. Withdrawing a record does not close the flag.
 
 ## R06: Intake cap
 

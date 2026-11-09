@@ -112,7 +112,7 @@ function Audit() {
         <Button type="button" variant="outline" size="sm" onClick={() => setF({})}>{t("filter.clear")}</Button>
       </form>
       <p className="mb-3 text-xs text-muted-foreground">{t("audit.filterNote")} {q.data && t("audit.total").replace("{n}", String(q.data.total))}</p>
-      <DataTable columns={columns} data={rows} loading={q.isPending} onRetry={() => q.refetch()}
+      <DataTable columns={columns} caption={t("nav.audit")} data={rows} loading={q.isPending} onRetry={() => q.refetch()}
         error={q.isError ? t(q.error.status === 403 ? "error.forbidden" : "error.generic") : null}
         paging={q.data ? { total: q.data.total, limit: LIMIT, offset, onOffset: setOffset } : undefined}
         labels={{ empty: t("audit.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />

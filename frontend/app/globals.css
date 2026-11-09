@@ -184,3 +184,30 @@
     line-height: 1.7;
   }
 }
+
+/* Landing: the waymark line draws once. Smooth anchor scrolling only when motion is welcome. */
+.waymark-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+  .waymark-line {
+    animation: waymark-draw 1.6s ease-out both;
+  }
+}
+@keyframes waymark-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Hindi text renders in Noto Sans Devanagari first, so Latin-only Geist never decides the glyphs. */
+:lang(hi) {
+  font-family: var(--font-devanagari), var(--font-geist-sans), system-ui, sans-serif;
+}

@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-09.
 
-**Status: the endpoints in the "Built" table below are in the code and tested. Every other endpoint in this file is PROPOSED.** The plan names the actions. The exact paths below are our wording. Where the built path differs from the plan, the built path wins and the row says so.
+**Status: the routes are built in the code and covered by `backend/tests/test_permission_matrix.py`, which fails on any `/api/v1` route not listed there. The phase sections below say what each phase added. Where a built path differs from the plan, the built path wins and the row says so.** The plan names the actions. The exact paths below are our wording.
 
 ## Built (Phase 1)
 
@@ -124,7 +124,7 @@ Institution users answer flags on their own records. The plan does not say which
 |---|---|---|---|---|
 | POST | `/api/v1/consents` | Institution admin or staff (own students) | Record consent, with purpose, fields, source and expiry | Yes |
 | DELETE | `/api/v1/consents/{id}` | Institution admin or staff (own students) | Withdraw consent | Yes |
-| GET | `/api/v1/consents?apaar={id}` | Institution (own students). AICTE scope not set. | List consent for an APAAR ID | No |
+| GET | `/api/v1/consents?apaar={id}` | Institution (own students). Officer (own regions). Admin (all). | List consent for an APAAR ID | No |
 
 ## Verifiers
 

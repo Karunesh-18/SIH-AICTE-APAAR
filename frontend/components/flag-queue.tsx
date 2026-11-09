@@ -86,7 +86,7 @@ export function FlagQueue({ mode }: { mode: "aicte" | "institution" }) {
         {active && <Button type="button" variant="outline" size="sm"
                            onClick={() => router.replace(path)}>{t("filter.clear")}</Button>}
       </form>
-      <DataTable columns={columns} data={q.data?.items ?? []} loading={q.isPending} onRetry={() => q.refetch()}
+      <DataTable columns={columns} caption={t("nav.flags")} data={q.data?.items ?? []} loading={q.isPending} onRetry={() => q.refetch()}
                  error={q.isError ? t(q.error.status === 403 ? "error.forbidden" : "error.generic") : null}
                  paging={q.data ? { total: q.data.total, limit: LIMIT, offset: f.offset, onOffset: (offset) => set({ offset }) } : undefined}
                  labels={{ empty: t(aicte ? "review.empty" : "inst.flags.empty"), error: t("error.generic"),

@@ -104,7 +104,7 @@ export function VerificationList() {
 
   return (
     <>
-      <DataTable columns={columns} data={q.data?.items ?? []} loading={q.isPending} onRetry={() => q.refetch()}
+      <DataTable columns={columns} caption={t("nav.verifications")} data={q.data?.items ?? []} loading={q.isPending} onRetry={() => q.refetch()}
         error={q.isError ? t(q.error.status === 403 ? "error.forbidden" : "error.generic") : null}
         labels={{ empty: t("ver.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />
       {open && <Detail id={open} canRevoke={user?.role === "AICTE_ADMIN"} onClose={() => setOpen(null)}

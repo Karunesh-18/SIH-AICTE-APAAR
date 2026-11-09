@@ -1,71 +1,42 @@
 # Handoff
 
-Last updated: 2026-11-09.
+Last updated: 2026-11-09. Branch: `phase-7-frontend`.
 
-Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`.
+Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions are in `DECISIONS.md`.
 
-## Where things stand
+## Current state
 
-- **Branches:** `phase-1-frontend` (login, API client, role-aware shell) and `phase-2-student-data` (student models, migration 0002, seed). Both are for PRs into `dev`. These docs do not record whether the PRs are open. Never commit to `main`.
-- **Phase:** 1 (foundation). Backend done. Frontend login, API client and shell built. The browser check and the run check are still open.
-- **Phase 2 (student data):** tables, migration `0002` and the synthetic seed are built. Ingestion and checks are Phase 3.
-- **Verified:** 157 backend tests pass. 12 frontend tests pass (vitest). `next build` passes.
-- **Not verified:** the frontend in a browser, in either theme. The Chrome extension was not connected, so no visual check was done.
-- **Built in the frontend:** `/login` with demo-user buttons, the API client (one refresh and retry on 401), the auth context, the role-aware shell, en and hi text, and placeholder pages at `/aicte`, `/institution` and `/verifier`. The home page sends each role to its first route.
-- **Built in the backend (Phase 1):** scaffold, JWT auth, the hash-chained audit log with verify, institutions API, the demo clock, notifications and the outbox, and CORS limited to `settings.cors_origins` (default `http://localhost:3000`). The list is in `API.md` ("Built").
-- **Built in the backend (Phase 2):** tables `upload`, `student_record`, `validation_flag`, `flag_record`, `flag_event`, `registry_entry`, `rule` and `rule_version`. The seed writes 15 fictional institutions, 5 demo users, 12 rules at version 1, the mock registry and raw records for the demo cases. The seed writes no flags. Phase 3 raises them.
+- All eight phases of `PLAN.md` are built. Phase status and PR numbers are in `PROGRESS.md`.
+- Backend: 1003 tests pass. Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean.
+- Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
+- Built but not checked in a browser: every screen, both themes, charts, Hindi rendering, dialogs and the QR scan.
+- Stubs: email and SMS write to the console. Real SMTP and SMS are not built.
+- Not built: encryption at rest, a job queue, object storage, and a registry lookup against real data.
+- Docker Compose is written but untested (Docker is not installed).
 
-## Next steps (in order)
+## How to run from scratch
 
-1. **Open the PRs into `dev`.** Use `gh pr create --base dev` for `phase-1-frontend` and for `phase-2-student-data`. Do not merge to `main`.
-2. **Check the frontend in a browser.** Log in with each demo user, check the shell and the placeholder pages in both themes, and record the result. Until this is done, the frontend stays "built, not checked in a browser".
-3. **Phase 3: ingestion and checks.** Write the failing tests first.
-   - Parsers for CSV, XLSX, XLS and JSON. `openpyxl` and `xlrd` are in the install list.
-   - Rules R01 to R07 on upload. R03 reads the `registry_entry` table (the mock).
-   - Duplicate IDs in one file follow ADR-012: the first row stays current, later rows are held with `is_current` false.
-   - The upload UI.
-   - Done when the Kaveri file gives exactly 3 flags covering 8 distinct rows. The seed is built for this count (open question 3). The test checks the seed rows, not the flags, so Phase 3 must still raise the flags.
-   - Read `frontend/node_modules/next/dist/docs/` before using a Next.js API (see `frontend/AGENTS.md`).
-
-## How to run
-
-These commands are for Windows PowerShell, from the repo root `W:\CODE\SIH-AICTE-APAAR`.
+Windows PowerShell, from the repo root `W:\CODE\SIH-AICTE-APAAR`. Needs Python 3.11 and Node.js 20.9 or later.
 
 ### Backend
-
-Python 3.11 is required (ADR-005).
 
 ```powershell
 cd backend
 py -3.11 -m venv .venv
-.\.venv\Scripts\python -m pip install fastapi "uvicorn[standard]" sqlalchemy alembic pydantic-settings pyjwt bcrypt cryptography apscheduler python-multipart openpyxl xlrd scikit-learn pytest httpx ruff
+.\.venv\Scripts\python -m pip install fastapi "uvicorn[standard]" sqlalchemy alembic pydantic-settings pyjwt bcrypt cryptography apscheduler python-multipart openpyxl xlrd scikit-learn pytest httpx ruff xlwt
 .\.venv\Scripts\python -m alembic upgrade head
+.\.venv\Scripts\python -m app.seed --demo
 .\.venv\Scripts\python -m uvicorn app.main:app --reload
 ```
 
-The database is SQLite at `backend/apaar.db` by default. Run `alembic upgrade head` once before starting the server. Without it, the server starts, but the database calls fail.
-
-To change settings, copy `.env.example` to `.env`. `DEMO_MODE=false` requires a `JWT_SECRET` of 32 or more characters that is not the default (ADR-008).
-
-Check it: open http://127.0.0.1:8000/health. It should return `{"status": "ok"}`. API docs are at http://127.0.0.1:8000/docs.
-
-### Seed (synthetic demo data)
-
-Migrate first, then seed. The seed needs the tables.
-
-```powershell
-cd backend
-.\.venv\Scripts\python -m alembic upgrade head
-.\.venv\Scripts\python -m app.seed
-```
-
-- To use a database other than `backend/apaar.db`, set `DATABASE_URL` first, for example `$env:DATABASE_URL = "sqlite:///./demo.db"`. Set it for both commands.
-- **One command for the whole demo:** `.\.venv\Scripts\python -m app.seed --demo` (after `alembic upgrade head`). It empties the database, seeds, runs the checks, adds the submission window, the verifiers and the consents, and resets the demo clock. Same result every time apart from ids and timestamps. Phase 7 added the end-to-end test `tests/test_e2e_demo_cases.py` (the ten cases through the HTTP API).
-- A plain `app.seed` refuses a database that already has institutions. To empty every table and seed again, run `.\.venv\Scripts\python -m app.seed --reset`.
-- The seed creates 15 fictional institutions, 5 demo users (`admin@`, `officer@`, `inst-admin@`, `staff@` and `verifier@demo.test`, password `Demo@1234`), 12 rules at version 1, the mock registry, and raw records for the demo cases from the idea doc. It writes no flags.
-- Every seeded APAAR ID starts with `9999` (ADR-014).
+- No environment variables are needed. The database is SQLite at `backend/apaar.db`.
+- `DEMO_MODE` is on by default, so the published demo JWT secret is accepted (ADR-008). To change settings, put them in `backend/.env` (see `.env.example` and `backend/app/core/config.py`).
+- `app.seed --demo` empties the database and seeds it again, so it can be run again at any time.
+- Check it: http://127.0.0.1:8000/health returns `{"status": "ok"}`. API docs are at http://127.0.0.1:8000/docs.
 
 ### Frontend
+
+Open a second terminal.
 
 ```powershell
 cd frontend
@@ -73,69 +44,107 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The login page offers the five demo users. Set `NEXT_PUBLIC_DEMO=0` to hide them.
+Open http://localhost:3000. The API defaults to `http://localhost:8000/api/v1`, so no variable is needed. Set `NEXT_PUBLIC_DEMO=0` to hide the demo-user buttons on the login page.
 
-Before using any Next.js API, read `frontend/node_modules/next/dist/docs/` (see `frontend/AGENTS.md`).
+Before using any Next.js API, read the docs in `frontend/node_modules/next/dist/docs/`. This version of Next.js has breaking changes.
 
-### Tests
+### Demo logins
+
+Password for all of them: `Demo@1234`
+
+| Email | Role |
+|---|---|
+| `admin@demo.test` | AICTE admin |
+| `officer@demo.test` | AICTE officer |
+| `inst-admin@demo.test` | Institution admin (Kaveri Valley College) |
+| `staff@demo.test` | Institution staff |
+| `verifier@demo.test` | Verifier, approved (seeded by `--demo`) |
+
+### Tests and lint
 
 ```powershell
 scripts\test.ps1
 ```
 
-This runs `pytest -q` in `backend/` (using `backend\.venv`), then `npx vitest run` in `frontend/`. It exits with code 1 if either suite fails.
-
-Lint the backend with:
+This runs pytest in `backend/` and vitest in `frontend/`. It exits with code 1 if either suite fails.
 
 ```powershell
 cd backend
 .\.venv\Scripts\python -m ruff check .
 ```
 
-### Docker (not built, untested)
+## Demo walk-through (about 10 minutes)
 
-`docker compose up` is planned for Phase 7. `docker-compose.yml` is written but has not been run. See ADR-006.
+Run the backend and frontend as above, with `app.seed --demo` done. The steps below follow the ten cases in `submission/idea.txt` section 29. Logins are the demo users above.
+
+| # | Case (idea doc section 29) | Where to show it | Login | What to point at |
+|---|---|---|---|---|
+| 1 | Clean upload: Malabar Pharmacy College, 40 students against intake 40 | `/institution` (submission status), upload receipt at `/institution/uploads/[id]`, `/aicte` (dashboard) | `inst-admin@`, then `admin@` | No flags. Malabar shows Clear on the dashboard. |
+| 2 | Excess intake: Kaveri Valley College, 132 against 126 allowed | `/institution/uploads/[id]`, `/review`, `/review/[id]` | `inst-admin@`, `officer@` | The R06 flag shows 126 allowed, 132 actual, 6 excess. The officer dismisses the R04 duplicate with a note, and the R06 flag moves to under review. This differs from the idea doc (which dismisses two rows and leaves four open). The built test follows the version here. |
+| 3 | Bad IDs: one 11-digit ID and one missing ID | `/institution/uploads/[id]` | `inst-admin@` | Each row shows its rule code and row number. The missing-ID record is held as pending APAAR. Nothing else in the file is held. |
+| 4 | Same student at two institutions | `/review/[id]` (R05), `/notifications` | `officer@`, `inst-admin@` | Kaveri's users receive "Student listed elsewhere". Northfield has no demo users, so its side is shown through the data. Northfield withdraws its record (`/institution/records/[id]`). The officer resolves the flag with a note. |
+| 5 | Student with no APAAR ID yet | `/institution/records` (filter `pending_apaar`), `/aicte` (pending share tile) | `staff@`, `admin@` | The record is held as `pending_apaar` and counted in its own figure. Adding the ID with a correction on `/institution/records/[id]` runs R01 again. |
+| 6 | Near duplicate: similar names, same date of birth, different IDs | `/review/[id]` (R08) | `officer@` | The score, the threshold and the masked IDs are shown. The officer links the records or dismisses the flag. |
+| 7 | Verification with consent | `/institution/consents` (record consent), `/verifier` (request), `/verify/[token]` (QR target) | `inst-admin@`, `verifier@` | The answer has three fields and a signed token. The QR code opens the check page. |
+| 8 | Verification without consent, and after withdrawn consent | `/verifier` (generic answer), `/verifications` and `/admin/audit` (precise reason) | `verifier@`, `admin@` | The verifier sees only `CONSENT_NOT_AVAILABLE`. AICTE sees the precise reason, and `VERIFICATION.REFUSED` is in the log. |
+| 9 | Tampering | `/admin/audit` (tamper button, then verify) | `admin@` | The tamper button edits one row (demo mode only). Verify reports the first broken row. |
+| 10 | Clock past the window close | `/admin/clock`, `/admin/windows` (reminders and late list), `/reports` | `admin@` | Advancing the clock past close produces reminders, the late list and R09 flags. |
+
+The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases.py`. It goes through the HTTP API, not the browser.
+
+## Not verified
+
+- No screen has been opened in a real browser. The Chrome extension was never connected. Layout, both themes, charts, dialogs, Hindi rendering and the QR scan are all unchecked.
+- The walk-through above is written from the routes and the test. It has not been clicked through.
+- Docker Compose has not been run. Docker is not installed.
+- Hindi strings for the new screens have no native-speaker review.
+- The scheduler thread has not run in tests. Tests cover only the on and off switch.
+- Email and SMS are console stubs. No real provider is wired.
+- Playwright was not used.
 
 ## Known limits
 
-These are recorded in `PROGRESS.md`. They are not fixed yet.
-
-- The audit verify cannot detect deletion of the last rows, because nothing after them points back.
-- Two concurrent audit appends give HTTP 500 (a unique-key violation with no retry). Add a retry before production.
-- The login rate limit is per email, in memory, per process. It can lock out a known email for 5 minutes.
-- Tests use bcrypt cost 4. Production default is 12.
-- Tokens are kept in `localStorage`. Any script on the page can read them (ADR-013). The client keeps the same refresh token after a refresh.
-- `.env.example` sets `NEXT_PUBLIC_API_URL` to `http://localhost:8000`. The client uses this value as its base URL, and its paths start at `/auth/...`, so the value must include `/api/v1`. Set it to `http://localhost:8000/api/v1`.
+- Rate limits are in memory, per process. The login limit is per email. A known email can be locked out for 5 minutes.
+- One Ed25519 signing key, with no rotation. It is not encrypted at rest. Replacing it invalidates every issued token (ADR-022).
+- Access and refresh tokens are kept in `localStorage`, so any script on the page can read them (ADR-013). The refresh token is not rotated. A copied refresh token works until it expires (7 days).
+- No forced password change at first login (ADR-025).
+- Audit verify cannot detect deletion of the last rows, because nothing after them points back. Two concurrent audit appends return HTTP 500, with no retry.
+- R05 runs when a record arrives and when it is corrected (ADR-016). It does not run again when the other side changes. Withdrawing a record does not close the flag. Only an officer closes it.
+- The R05 flag and its notification name the other institution. The APAAR ID in the flag is masked.
+- R08 needs an exact date-of-birth match. The thresholds for R08, R10, R11 and R12 are placeholders for AICTE to set.
+- The scheduler starts only when `DEMO_MODE` is off or `SCHEDULER=1` (ADR-018).
+- Background processing and email dispatch run in the process, with no queue. One process is assumed.
+- The frontend `DataTable` sorts the current page only. The audit page filters on the first 100 rows, on the client.
+- `GET /api/v1/institutions/{id}/records` lists current records across all cycles. After `--demo` it also lists the 2025 rows seeded for R10.
+- Tests run bcrypt at cost 4. The production default is 12.
 
 ## Open questions
 
-Each question says which phase it blocks.
-
-| # | Question | Blocks |
+| # | Question | Status |
 |---|---|---|
-| 1 | **R01 wording.** The idea doc says a missing ID is "returned to the institution to fix" and also "held as pending APAAR, not rejected". This repo treats it as a flag plus `pending_apaar` status. Confirm. | Phase 3 |
-| 2 | **Hard stop.** `rule_version.hard_stop` exists in the plan. The idea doc says a hard stop is "AICTE's choice". The advisory rule says the platform never rejects. What does `hard_stop` do? A proposal: it only changes how the upload is shown. It never refuses data. | Phase 3 |
-| 3 | **The 8-row count.** The plan says the Kaveri file gives "exactly 3 flags covering 8 rows". The idea doc's example has 6 excess rows, plus 2 rows for the duplicate ID, plus 1 row for the contradiction. That is 9 rows if none overlap. **Resolved.** Seed row 60 has an admission date in 2027. It sorts last by admission date, so it is one of the six over-cap rows. The flags then cover 6 (cap, including row 60) + 2 (duplicate rows 41 and 97) + 1 (future date, the same row 60) = 8 distinct rows. `test_kaveri_future_dated_row_is_among_the_six_over_cap_rows` in `backend/tests/test_seed.py` checks this. | Resolved (Phase 2 seed) |
-| 4 | **Threshold values.** The plan does not set R08's similarity threshold, R10's percentage, R11's percentage, or R12's hours and category share. These are placeholders. | Phases 5 and 7 |
-| 5 | **Audit genesis value.** Answered in code: the first `prev_hash` is 64 zeros (`services/audit.py`). Confirm it is fine for the demo and record it in the plan. | Phase 1 (done in code) |
-| 6 | **Verifier status values.** The plan uses `PENDING`. The other values (approved, rejected) are not written down. | Phase 6 |
-| 7 | **Refused verification and the institution.** Does the institution learn about a refused request? The plan says the institution is notified about requests, but not about refusals. | Phase 6 |
-| 8 | **Cross-institution alerts (R05) and privacy.** Should an institution see the other institution's name and the full APAAR ID in the alert? See `ROLES.md`. | Phase 3 |
-| 9 | **Record transitions.** Whether `flagged` returns to `valid` when flags are resolved, and whether a `withdrawn` record can be restored. | Phase 4 |
-| 10 | **Token key rotation.** What happens to tokens signed with an old key. | Phase 6 |
-| 11 | **Registry access.** Can AICTE query the APAAR registry, under what authorisation, and what does a lookup return? This decides whether R03 can use real data. Until then it runs on the mock. (Idea doc section 32.) | Real-data use only |
-| 12 | **Legal basis for consent.** When is consent needed, and when is a legitimate use enough? This sets the default consent behaviour. (Idea doc section 32.) | Phase 6 |
-| 13 | **Mandatory fields per institution type.** (Idea doc section 32.) | Phase 3 |
-| 14 | **Supernumerary seat categories and limits.** (Idea doc section 32.) | Phase 3 |
-| 15 | **Transfers, breaks and repeats.** How they are recorded, so R05 does not raise alerts that everyone already understands. Cross-cycle checks are off by default. (Idea doc section 24.) | Phase 3 |
-| 16 | **Submission windows per institution type,** and whether they repeat each year. (Idea doc section 32.) | Phase 5 |
-| 17 | **Retention and removal.** How long records are kept, and who may ask for removal. (Idea doc section 32.) | Before any real data |
-| 18 | **Verifier eligibility.** Which organisations may register, and who approves them. (Idea doc section 32.) | Phase 6 |
-| 19 | **Certificate layouts.** Whether degree-awarding bodies will print the APAAR ID on certificates. This depends on them, not on this project. (Idea doc section 10.) | None in code |
-| 20 | **Missing APAAR ID: returned or pending?** The idea doc says a missing ID is both "returned to the institution to fix" and "held as pending APAAR". RULES.md follows "pending". Confirm with the team. | Phase 3 |
-| 21 | **Worked example arithmetic.** The idea doc says 3 flags cover 8 rows. Its parts are 6 (cap) + 2 (duplicate ID) + 1 (future date) = 9, unless one row sits in two flags. **Resolved.** Row 60 sits in the cap flag and in the future-date flag, as in question 3. The demo number 8 stands. | Resolved (Phase 2 seed) |
-| 22 | **Meaning of `rule_version.hard_stop`.** Under the advisory-only principle its effect is undefined. Decide what it does, or drop it. | Phase 3 |
-| 23 | **R05 alert text.** The alert names the other institution, which may conflict with the masking rules. | Phase 4 |
+| 1 | R01 wording. The idea doc says a missing ID is "returned to the institution" and also "held as pending APAAR". | Decided: a missing ID gets an R01 flag and status `pending_apaar`. Nothing is rejected. The "returned" wording is not followed. |
+| 2 | Hard stop. What `rule_version.hard_stop` does. | Decided: display only. The field is stored per rule version, editable by the AICTE admin, and shown on the flag detail. No rule uses it to refuse, hold or change data. |
+| 3 | The Kaveri count (3 flags covering 8 rows). | Resolved. Seed row 60 is both over the cap and dated in 2027. |
+| 4 | Threshold values for R08, R10, R11 and R12. | Open. Placeholders. AICTE to set. |
+| 5 | Audit genesis value. | Resolved in code: the first `prev_hash` is 64 zeros. Confirm for the record. |
+| 6 | Verifier status values. | Decided in code: `PENDING`, `APPROVED`, `REJECTED`. |
+| 7 | Does the institution learn about a refused request? | Decided in code: the institution is notified on a grant only (ADR-021). |
+| 8 | R05 alert: should an institution see the other institution's name and the full APAAR ID? | Open. Code shows the other institution's name and programme, and masks the APAAR ID. The team has not confirmed this. |
+| 9 | Record transitions: does `flagged` return to `valid`, and can a withdrawn record be restored? | Partly decided: a withdrawn record cannot be corrected or withdrawn again (409). Restore is not built. |
+| 10 | Token key rotation. | Open. Not built. |
+| 11 | Registry access: can AICTE query the APAAR registry, under what authority? | Open. R03 runs on the mock. |
+| 12 | Legal basis for consent. When is consent needed, and when is a legitimate use enough? | Open. The code requires a consent record for every verification. The legal basis is not decided. |
+| 13 | Mandatory fields per institution type. | Open. Not set. |
+| 14 | Supernumerary seat categories and limits. | Open. |
+| 15 | Transfers, breaks and repeats. Cross-cycle checks are off by default. | Open. |
+| 16 | Submission windows per institution type, and whether they repeat yearly. | Open. |
+| 17 | Retention and removal. | Open. Needed before any real data. |
+| 18 | Verifier eligibility. | Open. Approval is per purpose, by the AICTE admin. Eligibility rules are not written down. |
+| 19 | Certificate layouts. | Not a question for this project. |
+| 20 | Missing APAAR ID: returned or pending? | Same as question 1. |
+| 21 | Worked example arithmetic. | Resolved (same as question 3). |
+| 22 | Meaning of `hard_stop`. | Same as question 2. |
+| 23 | R05 alert text. | Same as question 8. |
 
 ## Known deviations
 
@@ -145,12 +154,21 @@ Each question says which phase it blocks.
 | Python 3.11 with pip, not `uv` with Python 3.12. | Neither `uv` nor Python 3.12 is installed. | ADR-005 |
 | Docker Compose is not tested. | Docker is not installed on the dev machine. | ADR-006 |
 | No code is copied from the earlier prototypes. | Clean history, no hidden secrets. | ADR-004 |
-| The build order is the plan's phases 0 to 7. The idea doc's order (section 31) is older. | The plan was revised after the idea doc. | `PLAN.md` |
-| R03 (registry lookup) is in Phase 3. The idea doc puts it in its sixth phase. | Plan order. | `PLAN.md` |
-| Some API paths differ from the idea doc and from the plan. Built paths are under `/api/v1/admin/...` and `/api/v1/auth/me`. | The routes were written in Phase 1. | `API.md` |
+| Build order follows the plan's phases 0 to 7. The idea doc's order (section 31) is older. | The plan was revised after the idea doc. | `PLAN.md` |
+| Some API paths differ from the plan. Built paths are under `/api/v1/admin/...` and `/api/v1/auth/me`. | Routes were written in Phase 1. | `API.md` |
+| Phase 7 "Playwright demo" is a pytest module through HTTP. | No browser run was done. | `PROGRESS.md` |
+
+## Next steps (in order)
+
+1. Browser pass of every screen, as each demo user, in light and dark themes and in Hindi. Record what breaks.
+2. Visual check of the dashboard charts in both themes, against the validated palette.
+3. Run `docker compose up` on a machine with Docker. Fix what fails. Until then, the Docker path stays "untested".
+4. Replace the console stubs with real SMTP and SMS adapters behind the existing adapter interface. Not started.
+5. Native-speaker review of the Hindi strings for the new screens.
+6. Merge the stack in order, `#2` to `#14`, into `dev` (see `PROGRESS.md`). Then open the `dev` to `main` PR at this milestone.
+7. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.
 
 ## Files not to edit
 
-- `submission/*`. Already submitted. The plan says these stay untouched.
+- `submission/*`. Already submitted.
 - `docs/PLAN.md`. The approved plan.
-- `CLAUDE.md`. Changes need the team's agreement.
