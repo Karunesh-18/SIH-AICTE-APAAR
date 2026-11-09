@@ -42,6 +42,14 @@ def test_narmada_near_duplicate_pair_raises_exactly_one_r08(demo):
         "Priyanka Deshmukh", "Priyanka Deshmuk"}
 
 
+def test_narmada_pair_is_only_an_r08_not_registry_noise(demo):
+    n = demo.scalars(select(Institution).where(
+        Institution.name == "Narmada School of Management")).one()
+    codes = [f.rule_code for f in demo.scalars(select(ValidationFlag).where(
+        ValidationFlag.institution_id == n.id))]
+    assert codes == ["R08"]  # the registry holds the same names the file carries
+
+
 def test_refuses_to_run_twice(demo):
     with pytest.raises(RuntimeError):
         seed_demo_flags(demo)

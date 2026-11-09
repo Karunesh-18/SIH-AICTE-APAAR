@@ -239,8 +239,8 @@ def seed(db: Session, reset: bool = False) -> None:
     nar = [student("Narmada School of Management", n) for n in range(1, 31)]
     nar[8].name, nar[9].name = "Priyanka Deshmukh", "Priyanka Deshmuk"
     nar[9].dob = nar[8].dob
-    for r in (nar[8], nar[9]):
-        register(r.apaar_id, r.name, r.dob)
+    for r in (nar[8], nar[9]):  # the registry holds the renamed pair, so only R08 speaks
+        registry[r.apaar_id].name, registry[r.apaar_id].dob = r.name, r.dob
     upload("Narmada School of Management", nar)
 
     for name, (*_rest, n_students) in {i[0]: i for i in INSTITUTIONS[6:]}.items():
@@ -355,6 +355,7 @@ def seed_demo_verification(db: Session) -> None:
     ids = db.scalars(
         select(StudentRecord.apaar_id).join(Programme, Programme.id == StudentRecord.programme_id)
         .where(Programme.institution_id == kaveri.id, StudentRecord.is_current,
+               StudentRecord.cycle_year == CYCLE,
                StudentRecord.apaar_id.is_not(None), StudentRecord.status != "withdrawn")
         .order_by(StudentRecord.row_number).limit(5)).all()
     now = clock.now()

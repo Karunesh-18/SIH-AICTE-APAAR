@@ -75,6 +75,18 @@ def test_demo_is_deterministic_across_databases():
         assert fingerprint(da) == fingerprint(dbb)
 
 
+def test_demo_consents_sit_on_the_first_four_current_kaveri_students():
+    with fresh()() as db:
+        seed_demo(db)
+        now = clock.now()
+        by_id = {c.apaar_id: c for c in db.scalars(select(Consent))}
+        assert sorted(by_id) == [f"9999{n:08d}" for n in (1, 2, 3, 4)]  # none on the 2025 cohort
+        assert by_id["999900000001"].withdrawn_at is None and by_id["999900000001"].expires_at > now
+        assert by_id["999900000002"].expires_at <= now
+        assert by_id["999900000003"].withdrawn_at is not None
+        assert by_id["999900000004"].purposes == ["SCHOLARSHIP"]
+
+
 def test_demo_puts_the_clock_back_to_now():
     clock.set_offset(5 * 86400)
     with fresh()() as db:
