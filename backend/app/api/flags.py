@@ -5,8 +5,8 @@ from pydantic import field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.records import mask_record, record_out
 from app.api.deps import require_roles
+from app.api.records import mask_record, record_out
 from app.api.schemas import Strict
 from app.core import clock
 from app.db.session import get_db

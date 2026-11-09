@@ -4,8 +4,8 @@ nothing here changes a student record."""
 from datetime import timedelta
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.core import clock
 from app.db.session import uow
@@ -17,19 +17,7 @@ from app.models.student import FlagEvent, FlagRecord, StudentRecord, ValidationF
 from app.models.user import User
 from app.services import audit, notify, validation
 from app.services.access import can_access_institution, officer_region_ids
-
-
-class NotFound(Exception):
-    pass
-
-
-class Forbidden(Exception):
-    pass
-
-
-class Conflict(Exception):
-    pass
-
+from app.services.errors import Conflict, Forbidden, NotFound
 
 AUDIT_ACTION = {"review": "FLAG.REVIEWED", "resolve": "FLAG.RESOLVED", "dismiss": "FLAG.DISMISSED",
                 "ask": "FLAG.ASKED", "reply": "FLAG.REPLIED", "link": "FLAG.LINKED"}
