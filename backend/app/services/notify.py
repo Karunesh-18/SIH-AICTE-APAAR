@@ -4,8 +4,9 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.adapters.email import ConsoleEmail, EmailAdapter
+from app.adapters.email import EmailAdapter, build_email_adapter
 from app.core import clock
+from app.core.config import settings
 from app.models.notify import Notification, Outbox
 from app.models.user import User
 
@@ -38,21 +39,22 @@ def dispatch_queued(db: Session, email: EmailAdapter) -> dict:
         user = db.get(User, note.user_id)
         try:
             email.send(user.email, note.subject, note.body)
-        except Exception:  # noqa: BLE001  adapters can fail any way; record and retry, never crash
+        except Exception as e:  # noqa: BLE001  adapters can fail any way; record and retry, never crash
             item.attempts += 1
+            item.last_error = f"{type(e).__name__}: {e}"[:300]  # adapters keep secrets out
             out["failed"] += 1
             if item.attempts >= MAX_ATTEMPTS:
                 note.status = "FAILED"
             log.warning("email attempt %s failed for notification %s", item.attempts, note.id)
         else:
             note.status, note.sent_at = "SENT", clock.now()
-            item.dispatched_at = clock.now()
+            item.dispatched_at, item.last_error = clock.now(), None
             out["sent"] += 1
         db.commit()
     return out
 
 
-_adapter: EmailAdapter = ConsoleEmail()  # swap for SMTP when a real gateway is approved
+_adapter: EmailAdapter = build_email_adapter(settings)  # EMAIL_BACKEND: console | smtp
 
 
 def get_adapter() -> EmailAdapter:

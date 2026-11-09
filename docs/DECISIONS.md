@@ -385,3 +385,9 @@ These are settled in `docs/PLAN.md`. They are listed here so that they are easy 
 - A thief who replays a stolen token inside the grace window of the real client's refresh is not detected; one who replays later is. A script that reads the current token from `localStorage` still holds a working token (ADR-013 is unchanged).
 - Expired rows are not purged; no cleanup job is built.
 - The logout request is best effort; if it fails the token lives until expiry.
+
+## ADR-027: SMTP email adapter behind the existing interface
+
+**Status.** Accepted. Tested against a fake SMTP server only; untested against a real provider.
+
+**Decision.** `adapters/email.py` gains `SmtpEmail` (stdlib `smtplib` and `email.message`, plain text, 15 s timeout, implicit SSL on port 465 otherwise STARTTLS when `SMTP_USE_TLS`). `EMAIL_BACKEND` is `console` (default; unchanged, no network) or `smtp`; `build_email_adapter(settings)` picks it. Settings: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` (`SecretStr`), `SMTP_USE_TLS`, `EMAIL_FROM`. The smtp backend refuses to start without host and sender. Subjects and bodies come from the existing notification rows. Existing producers already mask the APAAR ID; as a last line of defence the adapter also masks any 12-digit run in a body. Failures: `Outbox.last_error` (new column, migration 0006, 300 chars) records the exception type and message with the password stripped; `attempts` increments and the row stays pending until `MAX_ATTEMPTS` (3), after which it is no longer retried and the notification is FAILED. SMS: `adapters/sms.py` `SmsAdapter.send(to, body)` is the seam where a provider plugs in; it remains the logging `StubSms`. Limits: one connection per message, no bounce handling, no DKIM or templates.
