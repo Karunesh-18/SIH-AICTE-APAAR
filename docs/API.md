@@ -187,4 +187,5 @@ Every use of an API key is audited, not only creating and revoking it.
 - `GET /institutions/{id}/records?status=&limit=&offset=` lists current records. `GET /records/{id}` is audited (`RECORD.VIEWED`) and returns version history and flags. Name, date of birth and APAAR ID are masked for outside readers in the serializer.
 - `POST /institutions/{id}/students` takes `{cycle_year, students: [...]}` with a JWT or `X-API-Key`. It processes synchronously and returns the upload summary.
 - `POST/GET /institutions/{id}/api-keys`, `DELETE .../{key_id}` (revoke). Institution admin of that institution or AICTE admin. The token is returned once.
+- `GET /uploads/{id}` also returns `flag_items` (rule code, reason, evidence, listed row numbers) so the receipt page can explain each flag.
 - `/admin/rules`, `/admin/rules/{code}/versions`, `PUT /admin/rules/{code}`, `/admin/rules/{code}/diff?from=&to=`, `POST /admin/rules/{code}/revert`. AICTE admin only. A note is required to change or revert.

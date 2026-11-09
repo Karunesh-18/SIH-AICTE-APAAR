@@ -56,4 +56,18 @@ describe("api client", () => {
     const init = (fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1];
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
   });
+
+  it("downloads a blob with the auth header, and supports put and delete", async () => {
+    const { api, fetchFn } = setup([
+      new Response("a,b", { status: 200 }), json(200, { v: 1 }), json(200, { v: 2 }),
+    ]);
+    const b = await api.blob("/templates/csv");
+    expect(await b.text()).toBe("a,b");
+    await api.put("/x", { a: 1 });
+    await api.del("/y");
+    const calls = fetchFn.mock.calls as unknown as [string, RequestInit][];
+    expect((calls[0][1].headers as Record<string, string>).Authorization).toBe("Bearer A1");
+    expect(calls[1][1].method).toBe("PUT");
+    expect(calls[2][1].method).toBe("DELETE");
+  });
 });

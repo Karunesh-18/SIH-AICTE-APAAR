@@ -28,7 +28,8 @@ The backend has its Phase 1 foundation built: login, roles, the audit chain with
 | Synthetic seed (`python -m app.seed`): fictional institutions, demo users, rules, mock registry | Built. Writes no flags. |
 | Region admin, user admin | Proposed |
 | Student upload (CSV, XLSX, XLS, JSON), templates, and the API batch endpoint with per-institution API keys (backend only) | Built. Tests pass. XLS tested with a fixture built by dev-only xlwt. |
-| Rules R01 to R07 on upload, rule version admin (backend) | Built. Tests pass. The upload screens are proposed. |
+| Rules R01 to R07 on upload, rule version admin (backend) | Built. Tests pass. |
+| Frontend: upload, receipt with flags, institution home, records (masked fields), API keys, rule versions with edit, diff and revert | Built. vitest, tsc, eslint and `next build` pass. Not checked in a browser. |
 | Registry lookup against a mock registry (R03) | Proposed |
 | Review queue, flag notes, record versions and withdrawal | Proposed |
 | Submission windows, reminders, late list | Proposed |

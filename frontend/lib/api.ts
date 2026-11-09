@@ -58,7 +58,7 @@ export function createApi({ baseUrl, fetchFn = (...a) => fetch(...a), store }: O
     return true;
   }
 
-  async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+  async function send(path: string, method = "GET", body?: unknown): Promise<Response> {
     let res = await raw(path, method, body);
     if (res.status === 401 && path !== "/auth/login") {
       if (await refresh()) res = await raw(path, method, body);
@@ -68,6 +68,11 @@ export function createApi({ baseUrl, fetchFn = (...a) => fetch(...a), store }: O
       const detail = await res.json().then((j) => j?.detail, () => undefined);
       throw new ApiError(res.status, typeof detail === "string" ? detail : res.statusText || "Request failed");
     }
+    return res;
+  }
+
+  async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+    const res = await send(path, method, body);
     return res.status === 204 ? (undefined as T) : res.json();
   }
 
@@ -75,6 +80,9 @@ export function createApi({ baseUrl, fetchFn = (...a) => fetch(...a), store }: O
     get: <T = unknown>(p: string) => request<T>(p),
     post: <T = unknown>(p: string, b?: unknown) => request<T>(p, "POST", b),
     patch: <T = unknown>(p: string, b?: unknown) => request<T>(p, "PATCH", b),
+    put: <T = unknown>(p: string, b?: unknown) => request<T>(p, "PUT", b),
+    del: <T = unknown>(p: string) => request<T>(p, "DELETE"),
+    blob: async (p: string) => (await send(p)).blob(),
     async login(email: string, password: string) {
       const res = await raw("/auth/login", "POST", { email, password }, false);
       if (!res.ok) {

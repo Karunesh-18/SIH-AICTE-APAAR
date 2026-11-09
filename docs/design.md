@@ -16,7 +16,7 @@ Student-level data submission, validation, monitoring and consent-based verifica
 | Notifications (in-app, with a transactional outbox) | Built (backend). Email is a console stub. |
 | Demo clock (advance and reset) | Built (backend) |
 | Student, flag, rule and registry tables; synthetic seed | Built (tables and seed). No ingestion or checks yet. |
-| Student upload (CSV/XLSX/XLS/JSON and REST API with API keys), rules R01 to R07, rule versions | Built (backend). Screens proposed. In-process background task, not a queue. |
+| Student upload (CSV/XLSX/XLS/JSON and REST API with API keys), rules R01 to R07, rule versions | Built (backend and screens). Screens pass vitest, tsc, eslint and `next build` but were not checked in a browser. In-process background task, not a queue. |
 | APAAR validation through a registry adapter | Proposed; live lookup needs authorisation from the issuing authority |
 | Intake-cap, cross-institution duplicate and consistency checks | Proposed |
 | TF-IDF near-duplicate name flag | Proposed (suggestion only) |
