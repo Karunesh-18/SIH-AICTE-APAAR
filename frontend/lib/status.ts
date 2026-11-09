@@ -23,3 +23,13 @@ export const formatDateTime = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "-";
 
 export const isMasked = (v: string | null | undefined): boolean => !!v && v.includes("*");
+
+const FLAG: Record<string, StatusMeta> = {
+  open: { labelKey: "flag.state.open", icon: "flag", tone: "alert" },
+  under_review: { labelKey: "flag.state.under_review", icon: "clock", tone: "neutral" },
+  ask_institution: { labelKey: "flag.state.ask_institution", icon: "alert", tone: "alert" },
+  resolved: { labelKey: "flag.state.resolved", icon: "check", tone: "clear" },
+  dismissed: { labelKey: "flag.state.dismissed", icon: "ban", tone: "neutral" },
+};
+export const flagState = (s: string): StatusMeta =>
+  FLAG[s] ?? { labelKey: `flag.state.${s}`, icon: "dot", tone: "neutral" };

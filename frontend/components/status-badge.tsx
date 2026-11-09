@@ -1,5 +1,5 @@
 import { AlertTriangle, Ban, Check, CircleDot, Clock, Flag, XOctagon } from "lucide-react";
-import { institutionState, recordStatus, type StatusMeta, type Tone } from "@/lib/status";
+import { flagState, institutionState, recordStatus, type StatusMeta, type Tone } from "@/lib/status";
 
 const ICONS = { check: Check, flag: Flag, clock: Clock, ban: Ban, alert: AlertTriangle, x: XOctagon, dot: CircleDot };
 const TONES: Record<Tone, string> = {
@@ -24,4 +24,8 @@ export const StatusBadge = ({ status, label }: { status: string; label: string }
 );
 export const InstitutionStateBadge = ({ state, label }: { state: string; label: string }) => (
   <Badge meta={institutionState(state)} label={label} />
+);
+
+export const FlagStateBadge = ({ state, label }: { state: string; label: string }) => (
+  <Badge meta={flagState(state)} label={label} />
 );

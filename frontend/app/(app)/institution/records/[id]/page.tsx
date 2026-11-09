@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Masked } from "@/components/masked";
 import { PageHeader } from "@/components/page-header";
+import { RecordActions } from "@/components/record-actions";
 import { QueryError } from "@/components/query-error";
 import { RoleGuard } from "@/components/role-guard";
 import { StatusBadge } from "@/components/status-badge";
@@ -82,6 +83,7 @@ function Detail() {
               ))}
             </ol>
           </section>
+          <RecordActions record={r} />
         </div>
       )}
     </>
