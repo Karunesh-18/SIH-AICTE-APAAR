@@ -639,5 +639,7 @@
  "dialog.confirm": "Confirm",
  "common.back": "Back",
  "common.privateNote": "Prototype on synthetic data. Not an official AICTE system.",
- "common.signIn": "Sign in"
+ "common.signIn": "Sign in",
+ "audit.anyEntity": "Any entity",
+ "reg.link": "Register as a verifier"
 }

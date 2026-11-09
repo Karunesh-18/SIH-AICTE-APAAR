@@ -1,6 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
+import { Suspense } from "react";
 import { AlertTriangle, Ban, Check, Clock, ShieldQuestion } from "lucide-react";
 import { PublicFrame } from "@/components/consent-parts";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ function KeyInfo() {
   );
 }
 
-export default function Page() {
+function CheckResult() {
   const { token } = useParams<{ token: string }>();
   const { t } = useAuth();
   // Public: a raw fetch, so no Authorization header is ever attached.
@@ -116,5 +117,14 @@ export default function Page() {
         </ol>
       </section>
     </PublicFrame>
+  );
+}
+
+// useParams suspends under Cache Components, so the page needs a boundary.
+export default function Page() {
+  return (
+    <Suspense fallback={<main className="p-8 text-muted-foreground">Checking...</main>}>
+      <CheckResult />
+    </Suspense>
   );
 }

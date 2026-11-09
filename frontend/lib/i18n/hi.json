@@ -639,5 +639,7 @@
  "dialog.confirm": "पुष्टि करें",
  "common.back": "वापस",
  "common.privateNote": "सिंथेटिक डेटा पर प्रोटोटाइप। यह आधिकारिक AICTE प्रणाली नहीं है।",
- "common.signIn": "साइन इन"
+ "common.signIn": "साइन इन",
+ "audit.anyEntity": "कोई भी इकाई",
+ "reg.link": "सत्यापनकर्ता के रूप में पंजीकरण करें"
 }

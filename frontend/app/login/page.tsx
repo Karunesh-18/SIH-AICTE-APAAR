@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ export default function LoginPage() {
           {busy ? t("en", "auth.signingIn") : t("en", "auth.submit")}
         </Button>
       </form>
+      <Link href="/verifiers/register" className="w-fit text-sm underline underline-offset-4">{t("en", "reg.link")}</Link>
       {showDemo && (
         <section aria-labelledby="demo" className="border-t border-border pt-4">
           <h2 id="demo" className="text-sm font-medium">
