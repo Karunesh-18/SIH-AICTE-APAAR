@@ -25,6 +25,8 @@ All eight phases of the build plan are built, and later work is merged to `dev`.
 | Consent ledger, purpose policies, verifier approval, Ed25519 signed results, public check API | Built. Tested. |
 | Demo clock, in-app notifications, transactional outbox | Built. Email is console by default; SMTP adapter is built (see below). |
 | Printable certificate record with a signed CERTIFICATE QR token | Built. Tested. QR scan not checked in a browser. |
+| Beyond the submission: offline check of signed QR tokens on the public verify page (Ed25519 in the browser, cached public key, ADR-028) | Built. Unit tested. Not checked in a browser. |
+| Beyond the submission: signed audit checkpoints that catch truncation of the last rows (ADR-029) | Built. Tested. No UI yet. |
 | Frontend: role-aware screens for every role, English and Hindi, light and dark themes | Built. Types, lint, unit tests and build pass. A browser pass was done and its findings are fixed (PRs #16, #17). Charts, dialogs and layout not recorded as checked. |
 | Synthetic seed, `python -m app.seed --demo` | Built. |
 | Ten demo cases as one test through the HTTP API | Built. Not run in a browser. |

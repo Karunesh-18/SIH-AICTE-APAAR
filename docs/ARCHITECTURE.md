@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-11-09.
+Last updated: 2026-11-10.
 
 Status: this is the planned design. Only the scaffold exists in code today (see `PROGRESS.md`). Anything not marked as built is proposed.
 
@@ -82,7 +82,7 @@ Read it this way:
 | Port | Stub now | Real target later | Notes |
 |---|---|---|---|
 | `RegistryAdapter` (Protocol) | `MockRegistry`, reads the seeded `registry_entry` table | The APAAR registry | A real lookup needs authorisation from the issuing authority. Not available. |
-| Email | `ConsoleEmail` (writes to the console) | SMTP | The idea doc names SMTP. The plan starts with the console stub. |
+| Email | `ConsoleEmail` (default) or `SmtpEmail` (`EMAIL_BACKEND=smtp`) | A real SMTP provider, not chosen | SMTP adapter built behind the same interface (ADR-027). Tested against a fake server only. |
 | SMS | `StubSms` (writes a row to the database) | An SMS provider | No provider is chosen. |
 
 Nothing outside the adapters talks to a real external system.
@@ -111,7 +111,7 @@ This is the planned path for a file upload (`POST /uploads`). The JSON batch end
 6. **Save the receipt.** The upload row and the student records are written in one transaction, with their audit entries. The receipt (upload ID) is returned straight away. New records start as `submitted`.
 7. **Run checks in the background.** The validation service loads the active rule version for each rule. It runs R01 to R07 on the upload. R05 and R08 also compare with other institutions' current records. Each failed check creates a `validation_flag` row. The flag stores the rule version it was raised under, the reason, the evidence and the record references.
 8. **Set record status.** Records with no problems become `valid`. Records with a flag become `flagged`. Records with no APAAR ID become `pending_apaar`. Good rows are accepted. Flagged rows stay in the upload and stay visible.
-9. **Commit and notify.** The checks and status changes are committed. The notification outbox is then sent. Email goes to the console stub. SMS is written to the database.
+9. **Commit and notify.** The checks and status changes are committed. The notification outbox is then sent. Email goes to the console by default, or to SMTP when `EMAIL_BACKEND=smtp` (ADR-027). SMS is written to the database.
 10. **Show the result.** The result page polls `GET /uploads/{id}`. It shows the received, accepted and flagged counts, and each flag with its rule code and reason.
 
 ## Record versions

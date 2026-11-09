@@ -25,6 +25,8 @@ Student-level data submission, validation, monitoring and consent-based verifica
 | Consent ledger, purpose policies, verifier approval, Ed25519 signed results, public check API | Built. Tested. |
 | Frontend screens for all roles, English and Hindi text, light and dark themes | Built. Types, lint, unit tests and build pass. A browser pass was done and its findings are fixed (PRs #16, #17). Charts, dialogs and layout not recorded as checked. |
 | Printable certificate record with a signed CERTIFICATE QR token | Built. Tested. QR scan not checked in a browser. |
+| Beyond the submission: offline check of signed QR tokens on the public verify page (Ed25519 in the browser, cached public key, ADR-028) | Built. Unit tested. Not checked in a browser. |
+| Beyond the submission: signed audit checkpoints that catch truncation of the last rows (ADR-029) | Built. Tested. No UI yet. |
 | Privacy masking of student fields in the API serializer | Built. Tested. |
 | APAAR validation against a live registry | Proposed. Needs authorisation from the issuing authority. R03 runs on a mock. |
 | Real email (SMTP) | Built behind the email interface (ADR-027). Tested against a fake server only. |

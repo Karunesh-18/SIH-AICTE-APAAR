@@ -7,13 +7,15 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 ## Current state
 
 - All eight phases of `PLAN.md` are built. Phase status and PR numbers are in `PROGRESS.md`.
-- Backend: 1003 tests pass. Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean. These counts are from the 2026-11-09 run. They have not been re-run since PRs #15 to #22.
+- Backend: 1003 tests pass. Frontend: 106 tests pass. The full backend suite was 1058 passed on the PR #26 branch (2026-11-10). `tsc`, `eslint` and `next build` are clean. These counts are from the 2026-11-09 run. They have not been re-run since PRs #15 to #22.
 - Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
 - A browser pass was done. Its findings were fixed: theme hydration, nativeButton, Hindi gaps and select labels (commit `7aa625b`, PR #16), and missing evidence labels for R07 to R12 in English and Hindi (PR #17). The regression tests for these are jsdom and source-grep tests, not a browser run. Git does not record which screens the pass covered. Still unverified: charts in both themes, dialogs, layout, the QR scan, and Hindi on the new screens.
 - Refresh tokens rotate, with reuse detection, a grace window and logout revocation (ADR-026, PR #20). Tested.
 - Printable certificate record at `/institution/records/[id]/certificate`. It has a signed CERTIFICATE token and a QR link to `/verify/[token]` (commit `0dcf181`, PR #22, migration 0008). Tested with pytest and vitest. The QR scan is not checked in a browser.
 - Email: console by default; SMTP adapter built (EMAIL_BACKEND=smtp, ADR-027), tested against a fake server only. SMS is a console stub.
 - Not built: encryption at rest, a job queue, object storage, and a registry lookup against real data.
+- Offline QR check on the public verify page (PR #25, ADR-028). The browser checks the signature with a cached public key when the API cannot be reached. Unit tested. Not checked in a browser.
+- Signed audit checkpoints (PR #26, ADR-029, migration 0009). Tested. No UI yet. Checkpoints are created by the scheduler tick or by the API.
 - Docker Compose is written but untested (Docker is not installed).
 
 ## How to run from scratch
@@ -91,6 +93,8 @@ Run the backend and frontend as above, with `app.seed --demo` done. The steps be
 | 8 | Verification without consent, and after withdrawn consent | `/verifier` (generic answer), `/verifications` and `/admin/audit` (precise reason) | `verifier@`, `admin@` | The verifier sees only `CONSENT_NOT_AVAILABLE`. AICTE sees the precise reason, and `VERIFICATION.REFUSED` is in the log. |
 | 9 | Tampering | `/admin/audit` (tamper button, then verify) | `admin@` | The tamper button edits one row (demo mode only). Verify reports the first broken row. |
 | 10 | Clock past the window close | `/admin/clock`, `/admin/windows` (reminders and late list), `/reports` | `admin@` | Advancing the clock past close produces reminders, the late list and R09 flags. |
+| 11 | Offline QR check: stop the backend, reload the verify page after one online visit | `/verify/[token]` (the frontend stays up; only the API is stopped) | None (public page) | The offline notice says the signature is valid and that revocation could not be checked. Without one online visit first, the notice says there is no saved key. |
+| 12 | Truncation caught by checkpoint (via API until the UI lands: create a checkpoint, truncate 3, verify) | API docs at `/docs`: `POST /api/v1/admin/audit/checkpoint`, then `POST /api/v1/admin/dev/truncate-audit?n=3`, then `POST /api/v1/admin/audit/verify` | `admin@` (demo mode only) | The `checkpoint` field in the verify answer shows `missing_rows`. Truncate 3 removes the checkpoint's own audit row and the signed head. A plain chain check does not show a missing head. |
 
 The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases.py`. It goes through the HTTP API, not the browser.
 
@@ -100,6 +104,8 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 - The walk-through above is written from the routes and the test. Git does not record it as clicked through.
 - Docker Compose has not been run. Docker is not installed.
 - Hindi strings for the new screens have no native-speaker review.
+- The offline QR check (PR #25) is covered by unit tests only. It has not been run in a browser with the API stopped.
+- Audit checkpoints have no UI. Only the API is tested.
 - The scheduler thread has not run in tests. Tests cover only the on and off switch.
 - SMS is a console stub. Email has an SMTP adapter (ADR-027), tested against a fake server only.
 - Playwright was not used.
@@ -110,7 +116,8 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 - One Ed25519 signing key, with no rotation. It is not encrypted at rest. Replacing it invalidates every issued token (ADR-022).
 - Access and refresh tokens are kept in `localStorage`, so any script on the page can read them (ADR-013). Refresh tokens rotate with reuse detection (ADR-026): a copied token stops working once the real client refreshes. A script that reads the current token can still use it until it is rotated or expires (7 days).
 - No forced password change at first login (ADR-025).
-- Audit verify cannot detect deletion of the last rows, because nothing after them points back. Two concurrent audit appends return HTTP 500, with no retry.
+- Audit verify cannot detect deletion of the last rows unless a signed checkpoint covers them (ADR-029). Rows written after the latest checkpoint can still be deleted unseen. Checkpoints are signed with the same key as the tokens (ADR-022), so a checkpoint is only useful once it is copied off the server. Two concurrent audit appends return HTTP 500, with no retry.
+- Offline QR check (ADR-028) checks the signature only. It does not check revocation, and it uses the device clock for expiry. It needs one online visit to save the key. No service worker is registered, so the page must load from the running frontend.
 - R05 runs when a record arrives and when it is corrected (ADR-016). It does not run again when the other side changes. Withdrawing a record does not close the flag. Only an officer closes it.
 - The R05 flag and its notification name the other institution. The APAAR ID in the flag is masked.
 - R08 needs an exact date-of-birth match. The thresholds for R08, R10, R11 and R12 are placeholders for AICTE to set.
@@ -168,7 +175,8 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 4. SMTP email adapter done (ADR-027, fake-server tested). A real SMS provider is not started; plug it into SmsAdapter.
 5. Native-speaker review of the Hindi strings for the new screens.
 6. The stack `#2` to `#14` is in `dev` (see `PROGRESS.md`). Open the `dev` to `main` PR at this milestone.
-7. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.
+7. Checkpoint UI (ADR-029), and a browser check of the offline QR notice with the API stopped (ADR-028).
+8. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.
 
 ## Files not to edit
 

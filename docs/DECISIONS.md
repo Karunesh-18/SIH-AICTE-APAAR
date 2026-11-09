@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-11-09.
+Last updated: 2026-11-10.
 
 Each record below is an Architecture Decision Record (ADR). The format is:
 
@@ -391,3 +391,40 @@ These are settled in `docs/PLAN.md`. They are listed here so that they are easy 
 **Status.** Accepted. Tested against a fake SMTP server only; untested against a real provider.
 
 **Decision.** `adapters/email.py` gains `SmtpEmail` (stdlib `smtplib` and `email.message`, plain text, 15 s timeout, implicit SSL on port 465 otherwise STARTTLS when `SMTP_USE_TLS`). `EMAIL_BACKEND` is `console` (default; unchanged, no network) or `smtp`; `build_email_adapter(settings)` picks it. Settings: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` (`SecretStr`), `SMTP_USE_TLS`, `EMAIL_FROM`. The smtp backend refuses to start without host and sender. Subjects and bodies come from the existing notification rows. Existing producers already mask the APAAR ID; as a last line of defence the adapter also masks any 12-digit run in a body. Failures: `Outbox.last_error` (new column, migration 0006, 300 chars) records the exception type and message with the password stripped; `attempts` increments and the row stays pending until `MAX_ATTEMPTS` (3), after which it is no longer retried and the notification is FAILED. SMS: `adapters/sms.py` `SmsAdapter.send(to, body)` is the seam where a provider plugs in; it remains the logging `StubSms`. Limits: one connection per message, no bounce handling, no DKIM or templates.
+
+---
+
+## ADR-028: Offline signature check on the public verify page
+
+**Status.** Accepted. Unit tested. Not checked in a browser.
+
+**Context.** A QR code on a printed certificate or a verification answer may be scanned where there is no network. The public check page needs the API for everything it shows, including revocation.
+
+**Decision.** `frontend/lib/offline-verify.ts` checks the Ed25519 signature of a token in the browser with WebCrypto, using the public key from `GET /api/v1/verify/public-key`. Each time the page loads that key while online, it saves the JWK in `localStorage` under `waymark.publicKey`. The offline check runs only when the check request fails with a network or server error. A 429 (rate limit) does not trigger it. The check accepts only `alg: EdDSA`. If the token has a `kid` and the saved key has one, they must match. Expiry is read from `exp` against the device clock. The page shows the offline result next to the "could not reach" message and a retry button.
+
+**Consequences.**
+- A token revoked on the server still passes the offline check. This is the main trade-off. The page says revocation could not be checked. Revocation is checked only online.
+- Expiry uses the device clock, which can be wrong. The server clock and the demo clock are not available offline.
+- The key is saved only after one online visit. A device that never loaded the page online gets "no saved public key".
+- The saved key sits in `localStorage`, where any script on the page can read it (the same exposure as ADR-013). It is a public key, so the exposure is small. After a key change (not built, ADR-022) an old saved key makes a valid token fail the check. It does not make an invalid one pass.
+- No service worker is registered. A browser with no network cannot load the page at all. The check works when the frontend is reachable and the API is not.
+
+## ADR-029: Signed audit checkpoints
+
+**Status.** Accepted. Backend tested. No UI yet.
+
+**Context.** The audit chain links each row to the row before it. Editing or removing a row in the middle breaks the chain. Removing the last rows does not, because nothing after them points back to them. This was a known limit.
+
+**Decision.** `services/audit.py` `create_checkpoint` signs the current head of the chain with the server's Ed25519 key (ADR-003, ADR-022). The claims are `typ: AUDIT_CHECKPOINT`, `seq` (head row id), `hash` (head hash), `count` (rows at the time), `iat` and `iss`. There is no `exp`. Checkpoints are stored in `audit_checkpoint` (migration 0009). Each one writes an `AUDIT.CHECKPOINT` audit row after the signed head. Checkpoints are made on each scheduler tick and by `POST /api/v1/admin/audit/checkpoint`. `GET /api/v1/audit/checkpoints` publishes the 50 newest. `POST /api/v1/audit/checkpoints/verify` checks any token against the current log. `POST /api/v1/admin/audit/verify` also reports the newest checkpoint. The result is `missing_rows` when the head row is gone, and `hash_mismatch` when the head row or a row before it has changed.
+
+This follows the Certificate Transparency idea: publish signed heads, so anyone holding an old copy can test the log later. It does not use a blockchain. There is no network, no consensus and no fee.
+
+**Typ and separate claims.** A checkpoint is checked with required claims `typ, seq, hash, count, iat, iss`, and `typ` must be `AUDIT_CHECKPOINT`. A verification or certificate token requires `jti, sub, purpose, fields, iat, exp, iss` (ADR-020) and has no `typ`. A checkpoint has none of `jti, sub, purpose, fields, exp`. So a token of one kind fails the other check, and neither can be passed off as the other.
+
+**Consequences.**
+- Residual gap: rows written after the newest checkpoint can still be deleted with no sign. Under the scheduler the gap is at most one tick. Without the scheduler (demo mode, unless `SCHEDULER=1`) it lasts until someone creates a checkpoint by hand.
+- Each checkpoint adds one audit row, so an idle log still grows on every tick.
+- A checkpoint writes its own row after the head. Deleting only that row leaves the checkpoint valid. Deleting two or more rows from the end removes the head and is caught as `missing_rows`. The demo deletes three.
+- No expiry. A checkpoint is evidence and stays valid until the key changes. The key is not rotated (ADR-022), so replacing it makes old checkpoints fail with `bad_signature`.
+- The public list is served by the same server. Anyone with the signing key can sign a new head. A checkpoint shows truncation only when a copy has been kept outside the server.
+- No UI. The demo truncation (`POST /api/v1/admin/dev/truncate-audit`) is API only and returns 404 outside demo mode.

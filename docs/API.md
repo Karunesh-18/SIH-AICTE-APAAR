@@ -1,6 +1,6 @@
 # API outline
 
-Last updated: 2026-11-09.
+Last updated: 2026-11-10.
 
 **Status: the routes are built in the code and covered by `backend/tests/test_permission_matrix.py`, which fails on any `/api/v1` route not listed there. The phase sections below say what each phase added. Where a built path differs from the plan, the built path wins and the row says so.** The plan names the actions. The exact paths below are our wording.
 
@@ -10,7 +10,7 @@ Last updated: 2026-11-09.
 |---|---|---|---|---|
 | GET | `/health` | Public | Liveness check. Outside `/api/v1`. | No |
 | POST | `/api/v1/auth/login` | Anyone | Access and refresh tokens. Rate limited per email (in memory). | Yes (`AUTH.LOGIN`) |
-| POST | `/api/v1/auth/refresh` | Signed-in user | New access token | No |
+| POST | `/api/v1/auth/refresh` | Holder of a refresh token (body) | Rotates the refresh token. Returns a new access token and a new refresh token. A used token is accepted once more inside the grace window (10 s by default). After that, reuse revokes its family (ADR-026). | Reuse only (`AUTH.REFRESH_REUSED`) |
 | GET | `/api/v1/auth/me` | Signed-in user | Current user, role and scope. Plan name was `/api/v1/me`. | No |
 | PATCH | `/api/v1/auth/me` | Signed-in user | Change own language (`en` or `hi`). Plan name was `/api/v1/me`. | Yes (`USER.LANGUAGE`) |
 | GET | `/api/v1/institutions` | Signed-in user, scoped by role and region | List institutions in scope | No |
@@ -65,7 +65,8 @@ The idea doc (section 18) gives some different paths. The plan replaces them:
 | Method | Path | Who | Purpose | Audit |
 |---|---|---|---|---|
 | POST | `/api/v1/auth/login` | Anyone | Get access and refresh tokens. **BUILT.** | Yes (`AUTH.LOGIN`) |
-| POST | `/api/v1/auth/refresh` | Signed-in user | Get a new access token | Not set |
+| POST | `/api/v1/auth/refresh` | Holder of a refresh token (body) | Rotates the refresh token, as in the Phase 1 table (ADR-026). | Reuse only (`AUTH.REFRESH_REUSED`) |
+| POST | `/api/v1/auth/logout` | Holder of a refresh token (body) | Revokes the token's family. Always 204. Best effort on the client. | Yes (`AUTH.LOGOUT`) |
 | GET | `/api/v1/me` | Signed-in user | Current user, role and scope. **BUILT** as `/api/v1/auth/me`. | No |
 | PATCH | `/api/v1/me` | Signed-in user | Change own language (`en` or `hi`). **BUILT** as `/api/v1/auth/me`. | Yes |
 
@@ -86,6 +87,7 @@ The idea doc (section 18) gives some different paths. The plan replaces them:
 | GET | `/api/v1/records/{id}` | Institution (own). AICTE (in region or all, by role). | One record, with its history | Yes |
 | PATCH | `/api/v1/records/{id}` | Institution admin or staff (own) | Correction. Creates a new version. | Yes |
 | POST | `/api/v1/records/{id}/withdraw` | Institution admin or staff (own) | Withdraw with a reason. Record stays in history. | Yes |
+| POST | `/api/v1/records/{id}/certificate` | Institution and AICTE roles, scoped to the record's institution | Mint a signed CERTIFICATE token for one current record with an APAAR ID. Feeds the printable record and its QR link (PR #22, migration 0008). | Yes (`CERTIFICATE.ISSUED`) |
 
 ## Flags
 
@@ -144,6 +146,13 @@ Institution users answer flags on their own records. The plan does not say which
 | GET | `/api/v1/verify/public-key` | Public | Ed25519 public key for checking tokens | No |
 | GET | `/api/v1/verify/{token}` | Public | Checks a token: genuine, expired, revoked or tampered | Yes (verification) |
 
+## Audit checkpoints
+
+| Method | Path | Who | Purpose | Audit |
+|---|---|---|---|---|
+| GET | `/api/v1/audit/checkpoints` | Public | The 50 newest signed checkpoints, newest first: sequence number, hash, count, time and token. No personal data. | No |
+| POST | `/api/v1/audit/checkpoints/verify` | Public. Rate limited per client address (`CHECK_MAX_PER_MINUTE`). | Body `{token}`. Returns `{ok, reason}` against the current log. Reasons: `bad_signature`, `missing_rows`, `hash_mismatch`. | Yes (`AUDIT.CHECKPOINT_CHECKED`, no actor) |
+
 ## Notifications
 
 | Method | Path | Who | Purpose | Audit |
@@ -173,8 +182,10 @@ Institution users answer flags on their own records. The plan does not say which
 | GET, POST | `/api/v1/admin/clock` | AICTE admin | Read or set the clock offset. **BUILT** with POST (plan said PUT). | Yes (writes) |
 | POST | `/api/v1/admin/alert-cycle` | AICTE admin | Run the reminder cycle now | Yes |
 | GET | `/api/v1/admin/audit` | AICTE admin | Read the audit log. **BUILT** at this path. | No |
-| POST | `/api/v1/admin/audit/verify` | AICTE admin | Walk the chain. Returns ok, or the first broken ID. **BUILT** at this path. | No |
+| POST | `/api/v1/admin/audit/verify` | AICTE admin | Walk the chain. Returns ok, or the first broken ID. Also returns `checkpoint` for the newest signed checkpoint: ok, or `reason` `bad_signature`, `missing_rows` or `hash_mismatch`; `null` if there is none. **BUILT** at this path. | No |
+| POST | `/api/v1/admin/audit/checkpoint` | AICTE admin | Sign the current chain head. Returns `seq`, `hash`, `count`, `signed_at` and `token`. 409 on an empty log. ADR-029. | Yes (`AUDIT.CHECKPOINT`) |
 | POST | `/api/v1/admin/dev/tamper-audit` | AICTE admin, demo mode only | Changes one audit row on purpose, to show the check. **BUILT** at this path. | No (raw edit on purpose) |
+| POST | `/api/v1/admin/dev/truncate-audit?n=` | AICTE admin, demo mode only (404 otherwise). `n` is 1 to 100, default 3. | Deletes the last `n` audit rows with a raw delete, to show the checkpoint check. | No (raw delete on purpose) |
 
 ## Institution admin
 
