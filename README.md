@@ -31,7 +31,7 @@ The backend has its Phase 1 foundation built: login, roles, the audit chain with
 | Rules R01 to R07 on upload, rule version admin (backend) | Built. Tests pass. |
 | Frontend: upload, receipt with flags, institution home, records (masked fields), API keys, rule versions with edit, diff and revert | Built. vitest, tsc, eslint and `next build` pass. Not checked in a browser. |
 | Registry lookup against a mock registry (R03) | Proposed |
-| Review queue, flag notes, record versions and withdrawal | Proposed |
+| Review queue, flag notes, record versions and withdrawal | Built in the backend (Phase 4); no screens yet |
 | Submission windows, reminders, late list | Proposed |
 | Dashboards, reports, scheduled rules R09 to R12 | Proposed |
 | Consent, verifier approval, Ed25519 signed results, QR check | Proposed |

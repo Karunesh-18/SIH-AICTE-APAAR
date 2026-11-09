@@ -250,6 +250,33 @@ Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling round
 
 ---
 
+## ADR-015: A withdrawn record stays current but counts nowhere
+
+**Status.** Accepted.
+
+**Context.** Demo case 4: a student moves from Kaveri to Northfield mid-year. Kaveri withdraws its record. The platform must not block either institution, and history must stay.
+
+**Decision.** `POST /records/{id}/withdraw` (reason required) sets `status = withdrawn` and `withdrawn_reason`. `is_current` stays true and `version` does not change, so the one-current-record index and the history are untouched. Withdrawn records are left out of R05 "active elsewhere" lookups (already in `validation._elsewhere`) and must be left out of intake and dashboard counts (Phase 5 reads this ADR). Withdrawing does not close any flag. The institutions holding an open R05 flag for the same student, and their region officers, are told, and an AICTE officer resolves the flag with a note. A withdrawn record cannot be corrected or withdrawn again (409). A later upload of the same student supersedes it like any current row.
+
+**Consequences.**
+- The system never decides that two institutions "agree"; the officer does, and the note is kept.
+- Queries that count students must filter `status != 'withdrawn'` themselves.
+
+---
+
+## ADR-016: Review actions and record corrections
+
+**Status.** Accepted.
+
+**Decision.**
+- The flag state machine is `domain/flags.py` (table-tested). Every action needs a note (422 without). A bad move is 409, a stale `lock_version` is 409, outside scope is 403 with an `ACCESS.REFUSED` audit entry. Institution roles can only read their own flags and `reply` to an ask. Officers and admins cannot reply.
+- `link` exists for R08 (Phase 7). It resolves the flag and stores "Linked as the same student: ..." in the flag event. It does not change either record. It is 409 for any other rule.
+- `PATCH /records/{id}` never edits a row. It marks the old row not current, adds version + 1 (`continues_record_id`, `superseded_by`), closes open flags of rules about one record's own fields (R01, R02, R03, R05, R07) with the event note "superseded by correction" (for R01 that gets its APAAR ID: a system note naming R01), carries R04, R06 and R08 flags over to the new version, and re-runs R01, R02, R03, R05 and R07 for that record. R04 and R06 are about a whole file and are not re-run per record. Nothing is rejected: if the new APAAR ID is already current in the same programme, the database would refuse it, so the call is 409 with a message.
+- Editable fields: APAAR ID (cannot be cleared), name, date of birth, year of study, admission date, category, NRI, OCI, FN. The programme and cycle are fixed by the upload. Who: AICTE admin, or admin or staff of the record's own institution.
+- Auto-closing is done "by the system" (no actor on the flag event); the audit entry names the user whose correction caused it.
+
+---
+
 ## Other decisions in the plan (not ADRs)
 
 These are settled in `docs/PLAN.md`. They are listed here so that they are easy to find.

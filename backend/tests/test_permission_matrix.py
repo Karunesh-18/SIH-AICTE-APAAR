@@ -35,6 +35,7 @@ MATRIX = {
     ("POST", "/api/v1/admin/audit/verify"): row(admin=200),
     ("POST", "/api/v1/admin/dev/tamper-audit"): row(admin=200),
     ("GET", "/api/v1/notifications"): row(**ALL_OK),
+    ("GET", "/api/v1/notifications/unread-count"): row(**ALL_OK),
     # notification belongs to admin; everyone else gets 404, never someone else's data
     ("POST", "/api/v1/notifications/{notification}/read"): row(
         admin=200, officer_south=404, inst_admin=404, inst_staff=404, verifier=404),
@@ -64,6 +65,19 @@ MATRIX = {
     ("PUT", "/api/v1/admin/rules/R02"): row(admin=200),
     ("GET", "/api/v1/admin/rules/R02/diff"): row(admin=200),
     ("POST", "/api/v1/admin/rules/R02/revert"): row(admin=200),
+    ("GET", "/api/v1/flags"): row(admin=200, officer_south=200, inst_admin=200, inst_staff=200),
+    ("GET", "/api/v1/flags/{flag}"): row(admin=200, officer_south=200, inst_admin=200,
+                                         inst_staff=200),
+    ("POST", "/api/v1/flags/{flag}/review"): row(admin=200, officer_south=200),
+    ("POST", "/api/v1/flags/{flag}/resolve"): row(admin=200, officer_south=200),
+    ("POST", "/api/v1/flags/{flag}/dismiss"): row(admin=200, officer_south=200),
+    ("POST", "/api/v1/flags/{flag}/ask"): row(admin=200, officer_south=200),
+    # the matrix flag is R03, not a near-duplicate: allowed roles get 409 from the rule check
+    ("POST", "/api/v1/flags/{flag}/link"): row(admin=409, officer_south=409),
+    # the test puts the flag in ask_institution first; only institution users may answer
+    ("POST", "/api/v1/flags/{flag}/reply"): row(inst_admin=200, inst_staff=200),
+    ("PATCH", "/api/v1/records/{record}"): row(admin=200, inst_admin=200, inst_staff=200),
+    ("POST", "/api/v1/records/{record}/withdraw"): row(admin=200, inst_admin=200, inst_staff=200),
 }
 BODIES = {
     ("PATCH", "/api/v1/auth/me"): {"language": "en"},
@@ -73,6 +87,10 @@ BODIES = {
     ("POST", "/api/v1/institutions/{kaveri}/students"): {"cycle_year": 2026, "students": []},
     ("POST", "/api/v1/institutions/{northfield}/students"): {"cycle_year": 2026, "students": []},
     ("POST", "/api/v1/institutions/{kaveri}/api-keys"): {"name": "matrix"},
+    ("PATCH", "/api/v1/records/{record}"): {"name": "Matrix Student"},
+    ("POST", "/api/v1/records/{record}/withdraw"): {"reason": "matrix"},
+    **{("POST", f"/api/v1/flags/{{flag}}/{a}"): {"note": "matrix"}
+       for a in ("review", "resolve", "dismiss", "ask", "link", "reply")},
 }
 QUERY = {("GET", "/api/v1/admin/rules/R02/diff"): {"from": 1, "to": 1}}
 
@@ -98,7 +116,7 @@ def _admin_notification(db, world):
 
 @pytest.mark.parametrize("method,tpl,role,expected", list(_cases()))
 def test_matrix(client, login, db, world, rules, method, tpl, role, expected):
-    from app.models.student import StudentRecord
+    from app.models.student import StudentRecord, ValidationFlag
     from tests.ingest_helpers import csv_bytes, programme, row
 
     programme(db, world["kaveri"])
@@ -110,7 +128,11 @@ def test_matrix(client, login, db, world, rules, method, tpl, role, expected):
     key = client.post(f"/api/v1/institutions/{world['kaveri'].id}/api-keys", headers=admin,
                       json={"name": "m"}).json()["id"]
     record = db.scalars(select(StudentRecord.id)).first()
-    path = tpl.format(kaveri=world["kaveri"].id, northfield=world["northfield"].id,
+    flag = db.scalars(select(ValidationFlag)).first()  # R03: the row's ID is not in the registry
+    if tpl.endswith("/reply"):
+        flag.state = "ask_institution"
+        db.commit()
+    path = tpl.format(flag=flag.id, kaveri=world["kaveri"].id, northfield=world["northfield"].id,
                       notification=_admin_notification(db, world), upload=up, record=record,
                       key=key)
     headers = {} if role == "anon" else login(EMAIL[role])
@@ -126,16 +148,15 @@ def test_matrix(client, login, db, world, rules, method, tpl, role, expected):
 
 def test_every_route_is_in_the_matrix():
     seen = set()
-    for route in create_app().routes:
-        path = getattr(route, "path", "")
-        if not path.startswith("/api/v1"):
-            continue
-        for method in getattr(route, "methods", set()) - {"HEAD", "OPTIONS"}:
-            seen.add((method, path))
+    # openapi(): newer FastAPI wraps included routers, so app.routes no longer lists their paths
+    for path, ops in create_app().openapi()["paths"].items():
+        if path.startswith("/api/v1"):
+            seen |= {(m.upper(), path) for m in ops}
     # Normalise matrix templates ({kaveri} -> {institution_id})
     covered = {(m, t.replace("{kaveri}", "{institution_id}").replace(
         "{northfield}", "{institution_id}").replace(
         "{notification}", "{notification_id}").replace("{upload}", "{upload_id}").replace(
-        "{record}", "{record_id}").replace("{key}", "{key_id}").replace(
+        "{record}", "{record_id}").replace("{flag}", "{flag_id}").replace(
+        "/templates/csv", "/templates/{fmt}").replace("/templates/xlsx", "/templates/{fmt}").replace("{key}", "{key_id}").replace(
         "/rules/R02", "/rules/{code}")) for (m, t) in MATRIX} | PUBLIC
     assert seen - covered == set(), f"routes missing from permission matrix: {seen - covered}"

@@ -189,3 +189,12 @@ Every use of an API key is audited, not only creating and revoking it.
 - `POST/GET /institutions/{id}/api-keys`, `DELETE .../{key_id}` (revoke). Institution admin of that institution or AICTE admin. The token is returned once.
 - `GET /uploads/{id}` also returns `flag_items` (rule code, reason, evidence, listed row numbers) so the receipt page can explain each flag.
 - `/admin/rules`, `/admin/rules/{code}/versions`, `PUT /admin/rules/{code}`, `/admin/rules/{code}/diff?from=&to=`, `POST /admin/rules/{code}/revert`. AICTE admin only. A note is required to change or revert.
+
+## Phase 4 as built (backend)
+
+- `GET /flags?state=&rule=&institution=&region=&age_days=&limit=&offset=` returns `{items, total}`. Admin sees all, an officer only their regions, institution roles only their own institution. `region` takes a region id or code. `age_days=N` means raised at least N days ago on the demo clock.
+- `GET /flags/{id}` is audited (`FLAG.VIEWED`). It returns reason, evidence, the rule version snapshot, the involved records (masked per viewer) and the event history. Outside scope is 403 plus an `ACCESS.REFUSED` audit entry.
+- `POST /flags/{id}/review|resolve|dismiss|ask|link` (AICTE roles) and `POST /flags/{id}/reply` (institution roles, own flags). Body `{note, lock_version?}`; the note is required (422). 409 for a move the state machine does not allow, a stale `lock_version`, or `link` on a non-R08 flag. Each action writes a flag event, an audit entry (`FLAG.REVIEWED|RESOLVED|DISMISSED|ASKED|REPLIED|LINKED`) and notifies the institution (a reply notifies the region officers and the assignee).
+- `PATCH /records/{id}` (AICTE admin, or admin or staff of that institution) returns `{record, previous, closed_flags, raised_flags}`. See ADR-016. `POST /records/{id}/withdraw` `{reason}` returns the record. See ADR-015.
+- `GET /notifications/unread-count` returns `{count}`.
+- `python -m app.seed --with-flags` runs the real pipeline over the seeded uploads (fresh database only).

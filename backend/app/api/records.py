@@ -1,8 +1,10 @@
 import json
+from datetime import date
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials
+from pydantic import Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -11,11 +13,12 @@ from app.api.schemas import Strict
 from app.api.uploads import upload_out
 from app.db.session import get_db, uow
 from app.domain.apaar import mask
-from app.models.enums import AICTE_ROLES, INSTITUTION_ROLES
+from app.models.enums import AICTE_ROLES, INSTITUTION_ROLES, Role
 from app.models.org import Institution, Programme
 from app.models.student import FlagRecord, StudentRecord, ValidationFlag
 from app.models.user import User
-from app.services import apikeys, audit, ingest
+from app.services import apikeys, audit, ingest, records
+from app.services import errors as E
 from app.services.access import can_access_institution
 
 router = APIRouter(tags=["records"])
@@ -78,7 +81,12 @@ def get_record(record_id: str, user: User = Depends(reader), db: Session = Depen
                                          StudentRecord.cycle_year == rec.cycle_year,
                                          StudentRecord.apaar_id == rec.apaar_id)
              if rec.apaar_id else select(StudentRecord).where(StudentRecord.id == rec.id))
-    versions = db.scalars(chain.order_by(StudentRecord.version, StudentRecord.row_number)).all()
+    found = {v.id: v for v in db.scalars(chain)}
+    for _step, link in (("back", "continues_record_id"), ("forward", "superseded_by")):
+        cur = rec  # a correction can change the APAAR ID, so follow the links as well
+        while (nxt := getattr(cur, link)) and nxt not in found and (cur := db.get(StudentRecord, nxt)):
+            found[cur.id] = cur
+    versions = sorted(found.values(), key=lambda v: (v.version, v.row_number or 0))
     flags = db.scalars(select(ValidationFlag).join(
         FlagRecord, FlagRecord.flag_id == ValidationFlag.id).where(
         FlagRecord.record_id == rec.id)).all()
@@ -125,3 +133,69 @@ def push_students(institution_id: str, body: StudentsIn,
     up = ingest.ingest(db, actor=user, institution_id=institution_id, cycle_year=body.cycle_year,
                        data=data, source="API", fmt="api", api_key_id=key.id if key else None)
     return upload_out(db, up)
+
+
+# ---- corrections and withdrawal ------------------------------------------------------------------
+
+editor = require_roles(Role.AICTE_ADMIN, *INSTITUTION_ROLES)
+
+
+class CorrectionIn(Strict):
+    """Only these fields can change; the programme and cycle are fixed by the upload."""
+    apaar_id: str | None = None
+    name: str | None = Field(None, min_length=1, max_length=200)
+    dob: date | None = None
+    year_of_study: int | None = Field(None, ge=1)
+    admission_date: date | None = None
+    admission_category: str | None = Field(None, min_length=1, max_length=32)
+    nri: bool | None = None
+    oci: bool | None = None
+    fn: bool | None = None
+
+
+class WithdrawIn(Strict):
+    reason: str
+
+    @field_validator("reason")
+    @classmethod
+    def _not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("A reason is required")
+        return v.strip()
+
+
+def _call(fn, *args):
+    try:
+        return fn(*args)
+    except E.NotFound:
+        raise HTTPException(404, "Record not found") from None
+    except E.Forbidden:
+        raise HTTPException(403, "You do not have access to this record") from None
+    except E.Conflict as e:
+        raise HTTPException(409, str(e)) from None
+    except E.Invalid as e:
+        raise HTTPException(422, str(e)) from None
+
+
+def _flag_brief(f: ValidationFlag) -> dict:
+    return {"id": f.id, "rule_code": f.rule_code, "reason": f.reason, "state": f.state}
+
+
+@router.patch("/records/{record_id}")
+def correct_record(record_id: str, body: CorrectionIn, user: User = Depends(editor),
+                   db: Session = Depends(get_db)):
+    res = _call(records.correct, db, user, record_id, body.model_dump(exclude_none=True))
+    owner = res["programme"].institution_id
+    return {"record": mask_record(record_out(res["new"], res["programme"]), user, owner),
+            "previous": mask_record(record_out(res["old"], res["programme"]), user, owner),
+            "closed_flags": [_flag_brief(f) for f in res["closed"]],
+            "raised_flags": [_flag_brief(f) for f in res["raised"]]}
+
+
+@router.post("/records/{record_id}/withdraw")
+def withdraw_record(record_id: str, body: WithdrawIn, user: User = Depends(editor),
+                    db: Session = Depends(get_db)):
+    rec = _call(records.withdraw, db, user, record_id, body.reason)
+    prog = db.get(Programme, rec.programme_id)
+    return mask_record(record_out(rec, prog) | {"withdrawn_reason": rec.withdrawn_reason},
+                       user, prog.institution_id)

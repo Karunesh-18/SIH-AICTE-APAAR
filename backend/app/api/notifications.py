@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -34,6 +34,13 @@ def list_notifications(unread: bool = False, user: User = Depends(get_current_us
     if unread:
         q = q.where(Notification.read_at.is_(None))
     return db.scalars(q.order_by(Notification.created_at.desc())).all()
+
+
+@router.get("/unread-count")
+def unread_count(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return {"count": db.scalar(select(func.count()).select_from(Notification).where(
+        Notification.user_id == user.id, Notification.channel == "IN_APP",
+        Notification.read_at.is_(None)))}
 
 
 @router.post("/{notification_id}/read", response_model=NotificationOut)

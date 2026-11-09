@@ -1,6 +1,7 @@
 """Run the active rules over one stored upload. Advisory only: it writes flags and routes them,
 it never changes, rejects or penalises a record. Every flag names its rule version and its numbers."""
 from collections import defaultdict
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -69,7 +70,7 @@ def _active_versions(db: Session) -> dict[str, RuleVersion]:
         RuleVersion.is_active, RuleVersion.enabled))}
 
 
-def _elsewhere(db: Session, up: Upload, ids: set[str]) -> tuple[dict[str, list[dict]], set[str]]:
+def _elsewhere(db: Session, cycle_year: int, institution_id: str, ids: set[str]) -> tuple[dict[str, list[dict]], set[str]]:
     """Other institutions' current, non-withdrawn records for the same cycle, by APAAR ID."""
     found: dict[str, list[dict]] = defaultdict(list)
     inst_ids: set[str] = set()
@@ -78,14 +79,27 @@ def _elsewhere(db: Session, up: Upload, ids: set[str]) -> tuple[dict[str, list[d
     q = (select(StudentRecord, Programme, Institution)
          .join(Programme, StudentRecord.programme_id == Programme.id)
          .join(Institution, Programme.institution_id == Institution.id)
-         .where(StudentRecord.is_current, StudentRecord.cycle_year == up.cycle_year,
+         .where(StudentRecord.is_current, StudentRecord.cycle_year == cycle_year,
                 StudentRecord.status != "withdrawn", StudentRecord.apaar_id.in_(ids),
-                Programme.institution_id != up.institution_id))
+                Programme.institution_id != institution_id))
     for rec, prog, inst in db.execute(q):
         found[rec.apaar_id].append({"institution": inst.name, "programme": prog.name,
                                     "admission_date": rec.admission_date.isoformat()})
         inst_ids.add(inst.id)
     return found, inst_ids
+
+
+def _r05(rows: list[R.Row], others: dict, prog: Programme) -> list[R.FlagDraft]:
+    """R05 drafts with the APAAR ID masked and this institution's side of the story attached."""
+    out = []
+    for d in R.r05_two_institutions(rows, others):
+        row = next(r for r in rows if r.row_number == d.row_numbers[0])
+        d.evidence = {**d.evidence, "apaar_id": mask(d.evidence["apaar_id"]),
+                      "this": {"programme": prog.name,
+                               "admission_date": row.admission_date.isoformat()
+                               if row.admission_date else None}}
+        out.append(d)
+    return out
 
 
 def validate(db: Session, up: Upload, parsed: list[R.Row], records: dict[int, StudentRecord],
@@ -100,7 +114,7 @@ def validate(db: Session, up: Upload, parsed: list[R.Row], records: dict[int, St
         return versions[code].params if code in versions else None
 
     drafts: list[R.FlagDraft] = []
-    others, other_inst = _elsewhere(db, up, {r.apaar_id for r in parsed if r.apaar_id}) \
+    others, other_inst = _elsewhere(db, up.cycle_year, up.institution_id, {r.apaar_id for r in parsed if r.apaar_id}) \
         if "R05" in versions else ({}, set())
     for rows in by_prog.values():
         prog = prog_of[rows[0].row_number]
@@ -114,13 +128,7 @@ def validate(db: Session, up: Upload, parsed: list[R.Row], records: dict[int, St
         if (p := active("R04")) is not None:
             drafts += R.r04_duplicate_in_file(rows, p)
         if active("R05") is not None:
-            for d in R.r05_two_institutions(rows, others):
-                row = next(r for r in rows if r.row_number == d.row_numbers[0])
-                d.evidence = {**d.evidence, "apaar_id": mask(d.evidence["apaar_id"]),
-                              "this": {"programme": prog.name,
-                                       "admission_date": row.admission_date.isoformat()
-                                       if row.admission_date else None}}
-                drafts.append(d)
+            drafts += _r05(rows, others, prog)
         if (p := active("R06")) is not None:
             drafts += R.r06_intake_cap(rows, info, p)
         if (p := active("R07")) is not None:
@@ -129,19 +137,9 @@ def validate(db: Session, up: Upload, parsed: list[R.Row], records: dict[int, St
     touched: set[int] = set()
     raised = []
     for d in drafts:
-        v = versions[d.rule]
-        flag = ValidationFlag(rule_code=d.rule, rule_version_id=v.id,
-                              institution_id=up.institution_id, upload_id=up.id,
-                              reason_key=d.reason_key, reason=render_reason(v, d),
-                              evidence=d.evidence, state="open")
-        db.add(flag)
-        db.flush()
-        for n in d.row_numbers:
-            db.add(FlagRecord(flag_id=flag.id, record_id=records[n].id))
-        db.add(FlagEvent(flag_id=flag.id, from_state=None, to_state="raised",
-                         actor_id=None, note=f"{d.rule} v{v.version_no}", at=clock.now()))
+        raised.append(_persist(db, d, versions[d.rule], up.institution_id, up.id,
+                               [records[n].id for n in d.row_numbers]))
         touched.update(d.row_numbers)
-        raised.append(flag)
 
     for n, rec in records.items():
         rec.status = ("pending_apaar" if rec.apaar_id is None
@@ -176,3 +174,49 @@ def validate(db: Session, up: Upload, parsed: list[R.Row], records: dict[int, St
                                 f"{up.cycle_year}. If the student transferred, mark one record withdrawn.",
                            related_type="upload", related_id=up.id)
 
+
+
+def _persist(db: Session, d: R.FlagDraft, v: RuleVersion, institution_id: str,
+             upload_id: str | None, record_ids: list[str]) -> ValidationFlag:
+    flag = ValidationFlag(rule_code=d.rule, rule_version_id=v.id, institution_id=institution_id,
+                          upload_id=upload_id, reason_key=d.reason_key, reason=render_reason(v, d),
+                          evidence=d.evidence, state="open")
+    db.add(flag)
+    db.flush()
+    for rid in record_ids:
+        db.add(FlagRecord(flag_id=flag.id, record_id=rid))
+    db.add(FlagEvent(flag_id=flag.id, from_state=None, to_state="raised", actor_id=None,
+                     note=f"{d.rule} v{v.version_no}", at=clock.now()))
+    return flag
+
+
+def recheck_record(db: Session, rec: StudentRecord, prog: Programme, registry: RegistryAdapter,
+                   actor: User) -> list[ValidationFlag]:
+    """Row-level rules (R01, R02, R03, R05, R07) for one corrected record. Runs inside the
+    caller's transaction. Aggregate rules (R04 in a file, R06 cap) are not re-run per record."""
+    versions = _active_versions(db)
+    placeholder = lambda d: None if d == date.min else d
+    row = R.Row(row_number=rec.row_number or 1, apaar_id=rec.apaar_id, name=rec.name,
+                dob=placeholder(rec.dob), admission_date=placeholder(rec.admission_date),
+                admission_category=rec.admission_category)
+    rows = [row]
+    drafts: list[R.FlagDraft] = []
+    if (v := versions.get("R01")) is not None:
+        drafts += R.r01_missing_id(rows, v.params)
+    if (v := versions.get("R02")) is not None:
+        drafts += R.r02_format(rows, v.params)
+    if (v := versions.get("R03")) is not None and v.params.get("registry_enabled", True):
+        drafts += R.r03_registry(rows, v.params, registry.lookup)
+    if "R05" in versions and rec.apaar_id:
+        others, _ = _elsewhere(db, rec.cycle_year, prog.institution_id, {rec.apaar_id})
+        drafts += _r05(rows, others, prog)
+    if (v := versions.get("R07")) is not None:
+        drafts += R.r07_fields(rows, rec.cycle_year, v.params)
+    raised = [_persist(db, d, versions[d.rule], prog.institution_id, rec.upload_id, [rec.id])
+              for d in drafts]
+    for f in raised:
+        audit.append(db, actor_id=actor.id, actor_role=actor.role, action="FLAG.RAISED",
+                     entity_type="validation_flag", entity_id=f.id,
+                     after={"rule": f.rule_code, "rule_version_id": f.rule_version_id,
+                            "reason_key": f.reason_key, "record_id": rec.id})
+    return raised

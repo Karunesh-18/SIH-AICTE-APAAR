@@ -21,10 +21,10 @@ Students are not users in v1. Consent is recorded through the institution.
 | Capability | AICTE_ADMIN | AICTE_OFFICER | INSTITUTION_ADMIN | INSTITUTION_STAFF | VERIFIER |
 |---|---|---|---|---|---|
 | Upload records (file or API) | No | No | Own institution | Own institution | No |
-| Correct or withdraw records | No | No | Own institution | Own institution | No |
+| Correct or withdraw records | Any (built in Phase 4) | No | Own institution | Own institution | No |
 | List records | All | Own regions | Own institution | Own institution | No |
 | View one record (audited) | All | Own regions | Own institution | Own institution | No |
-| Answer flags on own records | No | No | Yes | Yes | No |
+| Answer flags on own records (reply to an ask) | No | No | Yes | Yes | No |
 | Review, resolve, dismiss flags | All | Own regions | No | No | No |
 | Run, save and export reports | Yes | Yes | No | No | No |
 | View dashboards | All | Own regions | Own institution | Own institution | No |

@@ -5,7 +5,9 @@ The ten demonstration cases of the idea document (section 29) are seeded as raw 
 flags themselves are raised by the checks (Phase 3), not written here.
 """
 import argparse
+import csv
 import hashlib
+import io
 import random
 from datetime import date, timedelta
 
@@ -16,7 +18,14 @@ from app.core.security import hash_password
 from app.db.base import Base
 from app.models.org import Institution, Programme, Region
 from app.models.rules import Rule, RuleVersion
-from app.models.student import RegistryEntry, StudentRecord, Upload
+from app.models.student import (
+    FlagEvent,
+    FlagRecord,
+    RegistryEntry,
+    StudentRecord,
+    Upload,
+    ValidationFlag,
+)
 from app.models.user import User, UserRegion
 
 DEMO_PASSWORD = "Demo@1234"
@@ -238,12 +247,44 @@ def seed(db: Session, reset: bool = False) -> None:
     db.commit()
 
 
+def seed_demo_flags(db: Session) -> None:
+    """Run the real ingestion and validation pipeline over the seeded rows, so the demo database
+    holds real flags and dashboards have something to show. The seeded raw rows are replaced by
+    the pipeline's output (Kaveri first, so Northfield's shared student raises R05)."""
+    from app.services import ingest
+
+    if db.scalar(select(func.count()).select_from(ValidationFlag)):
+        raise RuntimeError("Flags already exist; run on a freshly seeded database.")
+    files = []
+    for inst in db.scalars(select(Institution)):
+        recs = db.scalars(select(StudentRecord).join(Upload, StudentRecord.upload_id == Upload.id)
+                          .where(Upload.institution_id == inst.id)
+                          .order_by(StudentRecord.row_number)).all()
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["apaar_id", "name", "dob", "admission_date", "admission_category"])
+        for r in recs:
+            w.writerow([r.apaar_id or "", r.name, r.dob.isoformat(), r.admission_date.isoformat(),
+                        r.admission_category])
+        files.append((inst, buf.getvalue().encode("utf-8")))
+    files.sort(key=lambda f: f[0].name != "Kaveri Valley College")
+    for model in (FlagEvent, FlagRecord, ValidationFlag, StudentRecord, Upload):
+        db.execute(delete(model))
+    db.commit()
+    for inst, data in files:
+        ingest.ingest(db, actor=None, institution_id=inst.id, cycle_year=CYCLE, data=data)
+
+
 if __name__ == "__main__":
     from app.db.session import SessionLocal
 
     ap = argparse.ArgumentParser(description="Seed synthetic demo data")
     ap.add_argument("--reset", action="store_true", help="delete everything first")
+    ap.add_argument("--with-flags", action="store_true",
+                    help="then run the checks over the seeded uploads so real flags exist")
     args = ap.parse_args()
     with SessionLocal() as session:
         seed(session, reset=args.reset)
+        if args.with_flags:
+            seed_demo_flags(session)
     print("Seeded. Demo users: *@demo.test, password", DEMO_PASSWORD)
