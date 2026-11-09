@@ -19,8 +19,14 @@ const INST: Record<string, StatusMeta> = {
 export const institutionState = (s: string): StatusMeta =>
   INST[s] ?? { labelKey: `state.${s}`, icon: "dot", tone: "neutral" };
 
-export const formatDateTime = (iso: string | null | undefined): string =>
-  iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "-";
+export const formatDateTime = (iso: string | null | undefined, lang: "en" | "hi" = "en"): string =>
+  iso ? new Date(iso).toLocaleString(lang === "hi" ? "hi-IN" : "en-IN", { dateStyle: "medium", timeStyle: "short" }) : "-";
+
+/** Region names come from the API in English; translate the known ones. */
+export const regionLabel = (t: (k: string) => string, name: string): string => {
+  const v = t(`region.${name}`);
+  return v === `region.${name}` ? name : v;
+};
 
 export const isMasked = (v: string | null | undefined): boolean => !!v && v.includes("*");
 

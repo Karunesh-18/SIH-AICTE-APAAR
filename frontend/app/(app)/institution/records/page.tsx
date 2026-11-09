@@ -43,7 +43,7 @@ function Records() {
       <div className="mb-4 flex items-center gap-2">
         <span className="text-sm">{t("record.filter")}</span>
         <Select value={status} onValueChange={(v) => { setStatus(v as string); setOffset(0); }}>
-          <SelectTrigger className="w-48" aria-label={t("record.filter")}><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-48" aria-label={t("record.filter")}><SelectValue>{(v: string) => (v === "all" ? t("record.all") : t(`status.${v}`))}</SelectValue></SelectTrigger>
           <SelectContent>
             {STATUSES.map((s) => (
               <SelectItem key={s} value={s}>{s === "all" ? t("record.all") : t(`status.${s}`)}</SelectItem>
