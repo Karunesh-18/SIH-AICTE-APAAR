@@ -276,3 +276,11 @@ def test_rule_changes_are_audited(client, login, db, rules):
     a = login("admin@demo.test")
     client.put(f"{BASE}/admin/rules/R06", headers=a, json={"enabled": False, "note": "pause"})
     assert db.scalars(select(AuditLog).where(AuditLog.action == "RULE.UPDATED")).first()
+
+
+def test_get_upload_lists_each_flag_with_rule_reason_and_evidence(client, login, db, setup):
+    h = login("kaveri.staff@demo.test")
+    up = upload(client, h, [row(1, apaar_id="12")]).json()["id"]
+    items = client.get(f"{BASE}/uploads/{up}", headers=h).json()["flag_items"]
+    assert len(items) == 1 and items[0]["rule_code"] == "R02"
+    assert items[0]["reason"] and "evidence" in items[0] and items[0]["rows"] == [1]

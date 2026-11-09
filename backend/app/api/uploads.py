@@ -18,7 +18,7 @@ from app.api.deps import institution_or_403, refuse, require_roles
 from app.db.session import get_db, get_session_factory
 from app.models.enums import AICTE_ROLES, INSTITUTION_ROLES, Role
 from app.models.org import Institution
-from app.models.student import Upload, ValidationFlag
+from app.models.student import FlagRecord, StudentRecord, Upload, ValidationFlag
 from app.models.user import User
 from app.services import ingest
 from app.services.access import officer_region_ids
@@ -95,7 +95,16 @@ def get_upload(upload_id: str, user: User = Depends(reader), db: Session = Depen
     if up is None:
         raise HTTPException(404, "Upload not found")
     institution_or_403(db, user, up.institution_id)
-    return upload_out(db, up)
+    flags = db.scalars(select(ValidationFlag).where(ValidationFlag.upload_id == up.id)
+                       .order_by(ValidationFlag.rule_code, ValidationFlag.id)).all()
+    items = []
+    for f in flags:
+        rows = db.scalars(select(StudentRecord.row_number).join(
+            FlagRecord, FlagRecord.record_id == StudentRecord.id).where(
+            FlagRecord.flag_id == f.id).order_by(StudentRecord.row_number)).all()
+        items.append({"id": f.id, "rule_code": f.rule_code, "reason_key": f.reason_key,
+                      "reason": f.reason, "evidence": f.evidence, "rows": rows})
+    return upload_out(db, up) | {"flag_items": items}
 
 
 @router.get("/templates/{fmt}")
