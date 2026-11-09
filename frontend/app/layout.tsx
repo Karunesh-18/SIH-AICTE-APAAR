@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Sans_Devanagari } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>{children}</AuthProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
