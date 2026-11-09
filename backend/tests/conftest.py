@@ -68,11 +68,12 @@ def world(db):
 
 @pytest.fixture
 def client(db, world):
-    from app.db.session import get_db
+    from app.db.session import get_db, get_session_factory
     from app.main import create_app
 
     app = create_app()
     app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_session_factory] = lambda: lambda: db
     return TestClient(app)
 
 
@@ -84,3 +85,18 @@ def login(client):
         return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
     return _login
+
+
+@pytest.fixture
+def rules(db):
+    """The twelve seeded rule versions (version 1, all active)."""
+    from app.models.rules import Rule, RuleVersion
+    from app.seed import RULES
+
+    for code, scope, title, _p, _m in RULES:
+        db.add(Rule(code=code, scope=scope, title=title))
+    db.flush()
+    for code, _s, _t, params, msg in RULES:
+        db.add(RuleVersion(rule_code=code, version_no=1, params=params, message_en=msg,
+                           is_active=True, note="Initial version"))
+    db.commit()
