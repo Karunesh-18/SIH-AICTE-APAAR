@@ -72,12 +72,12 @@ def sign(claims: dict) -> str:
     return jwt.encode(claims, private_key(), algorithm=ALG, headers={"kid": key_id()})
 
 
-def verify(token: str) -> dict:
+def verify(token: str, required: list[str] = REQUIRED) -> dict:
     """Signature, algorithm, issuer and claim presence. Expiry is the caller's job, so it can use
     the demo clock. Raises jwt.PyJWTError for anything wrong."""
     return jwt.decode(token, private_key().public_key(), algorithms=[ALG],
                       issuer=settings.verify_issuer,
-                      options={"verify_exp": False, "verify_iat": False, "require": REQUIRED})
+                      options={"verify_exp": False, "verify_iat": False, "require": required})
 
 
 def decode_unverified(token: str) -> dict:

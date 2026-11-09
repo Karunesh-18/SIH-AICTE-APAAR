@@ -6,7 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.services import notify, windows
+from app.services import audit, notify, windows
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ def _tick() -> None:
         with SessionLocal() as db:
             windows.run_cycle(db)  # dispatches the outbox itself
             notify.dispatch_now(db)  # and retries anything left over from earlier failures
+            audit.create_checkpoint(db, None)  # None = system actor
     except Exception:
         log.exception("window cycle failed")
 

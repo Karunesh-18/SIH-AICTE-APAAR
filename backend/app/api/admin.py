@@ -16,7 +16,7 @@ from app.models.enums import Role
 from app.models.notify import Outbox
 from app.models.user import User
 from app.services import anomaly, audit, clock_admin, notify, rules_admin, windows
-from app.services.errors import NotFound
+from app.services.errors import Invalid, NotFound
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 admin_only = require_roles(Role.AICTE_ADMIN)
@@ -51,6 +51,28 @@ def list_audit(limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=0
 @router.post("/audit/verify")
 def verify_audit(_: User = Depends(admin_only), db: Session = Depends(get_db)):
     return audit.verify(db)
+
+
+@router.post("/audit/checkpoint")
+def create_checkpoint(user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    try:
+        cp = audit.create_checkpoint(db, user)
+    except Invalid as e:
+        raise HTTPException(409, str(e)) from None
+    return audit.checkpoint_out(cp)
+
+
+@router.post("/dev/truncate-audit")
+def truncate_audit(n: int = Query(3, ge=1, le=100), _: User = Depends(admin_only),
+                   db: Session = Depends(get_db)):
+    """Demo only: delete the last n audit rows, which the chain alone cannot detect."""
+    if not settings.demo_mode:
+        raise HTTPException(404, "Not found")
+    with uow(db):  # raw delete, deliberately bypassing audit.append
+        rows = db.scalars(select(AuditLog).order_by(AuditLog.id.desc()).limit(n)).all()
+        for r in rows:
+            db.delete(r)
+    return {"deleted": len(rows)}
 
 
 @router.post("/dev/tamper-audit")
