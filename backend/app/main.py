@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.exc import OperationalError
 
-from app.api import admin, auth, institutions
+from app.api import admin, auth, institutions, notifications
 from app.db.session import SessionLocal
 from app.services import clock_admin
 
@@ -27,7 +27,7 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for r in (auth.router, institutions.router, admin.router):
+    for r in (auth.router, institutions.router, notifications.router, admin.router):
         app.include_router(r, prefix="/api/v1")
     return app
 

@@ -33,6 +33,10 @@ MATRIX = {
     ("GET", "/api/v1/admin/audit"): row(admin=200),
     ("POST", "/api/v1/admin/audit/verify"): row(admin=200),
     ("POST", "/api/v1/admin/dev/tamper-audit"): row(admin=200),
+    ("GET", "/api/v1/notifications"): row(**ALL_OK),
+    # notification belongs to admin; everyone else gets 404, never someone else's data
+    ("POST", "/api/v1/notifications/{notification}/read"): row(
+        admin=200, officer_south=404, inst_admin=404, inst_staff=404, verifier=404),
     ("GET", "/api/v1/admin/clock"): row(admin=200),
     ("POST", "/api/v1/admin/clock"): row(admin=200),
 }
@@ -48,9 +52,22 @@ def _cases():
             yield pytest.param(method, tpl, role, expected[role], id=f"{role}-{method}-{tpl}")
 
 
+def _admin_notification(db, world):
+    from sqlalchemy import select
+
+    from app.db.session import uow
+    from app.models.notify import Notification
+    from app.services import notify
+
+    with uow(db):
+        notify.enqueue(db, [world["users"]["admin"]], subject="s", body="b")
+    return db.scalars(select(Notification.id).where(Notification.channel == "IN_APP")).first()
+
+
 @pytest.mark.parametrize("method,tpl,role,expected", list(_cases()))
-def test_matrix(client, login, world, method, tpl, role, expected):
-    path = tpl.format(kaveri=world["kaveri"].id, northfield=world["northfield"].id)
+def test_matrix(client, login, db, world, method, tpl, role, expected):
+    path = tpl.format(kaveri=world["kaveri"].id, northfield=world["northfield"].id,
+                      notification=_admin_notification(db, world))
     headers = {} if role == "anon" else login(EMAIL[role])
     r = client.request(method, path, headers=headers, json=BODIES.get((method, tpl)))
     assert r.status_code == expected, r.text
@@ -66,5 +83,6 @@ def test_every_route_is_in_the_matrix():
             seen.add((method, path))
     # Normalise matrix templates ({kaveri} -> {institution_id})
     covered = {(m, t.replace("{kaveri}", "{institution_id}").replace(
-        "{northfield}", "{institution_id}")) for (m, t) in MATRIX} | PUBLIC
+        "{northfield}", "{institution_id}").replace(
+        "{notification}", "{notification_id}")) for (m, t) in MATRIX} | PUBLIC
     assert seen - covered == set(), f"routes missing from permission matrix: {seen - covered}"
