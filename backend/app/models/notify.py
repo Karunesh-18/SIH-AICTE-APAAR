@@ -34,4 +34,5 @@ class Outbox(IdMixin, Base):
     kind: Mapped[str] = mapped_column(String(16))
     payload: Mapped[dict] = mapped_column(JSON)
     attempts: Mapped[int] = mapped_column(default=0)
+    last_error: Mapped[str | None] = mapped_column(String(300))
     dispatched_at: Mapped[datetime | None] = mapped_column(UTCDateTime)

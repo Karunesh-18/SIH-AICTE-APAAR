@@ -10,7 +10,7 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 - Backend: 1003 tests pass. Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean.
 - Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
 - Built but not checked in a browser: every screen, both themes, charts, Hindi rendering, dialogs and the QR scan.
-- Stubs: email and SMS write to the console. Real SMTP and SMS are not built.
+- Email: console by default; SMTP adapter built (EMAIL_BACKEND=smtp, ADR-026), fake-server tested only. SMS is a console stub.
 - Not built: encryption at rest, a job queue, object storage, and a registry lookup against real data.
 - Docker Compose is written but untested (Docker is not installed).
 
@@ -99,7 +99,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 - Docker Compose has not been run. Docker is not installed.
 - Hindi strings for the new screens have no native-speaker review.
 - The scheduler thread has not run in tests. Tests cover only the on and off switch.
-- Email and SMS are console stubs. No real provider is wired.
+- SMS is a console stub. Email has an SMTP adapter (ADR-026), untested against a real provider.
 - Playwright was not used.
 
 ## Known limits
@@ -163,7 +163,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 1. Browser pass of every screen, as each demo user, in light and dark themes and in Hindi. Record what breaks.
 2. Visual check of the dashboard charts in both themes, against the validated palette.
 3. Run `docker compose up` on a machine with Docker. Fix what fails. Until then, the Docker path stays "untested".
-4. Replace the console stubs with real SMTP and SMS adapters behind the existing adapter interface. Not started.
+4. SMTP email adapter done (ADR-026, fake-server tested). A real SMS provider is not started; plug it into SmsAdapter.
 5. Native-speaker review of the Hindi strings for the new screens.
 6. Merge the stack in order, `#2` to `#14`, into `dev` (see `PROGRESS.md`). Then open the `dev` to `main` PR at this milestone.
 7. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.
