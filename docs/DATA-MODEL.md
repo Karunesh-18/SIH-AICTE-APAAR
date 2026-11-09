@@ -28,6 +28,8 @@ Status: Phase 1 and Phase 2 tables are built, in two Alembic migrations (`backen
 | `notification` | id, user_id, channel, subject, body, related_type, related_id, status, read_at, sent_at | `channel` in IN_APP, EMAIL, SMS. `status` in QUEUED, SENT, FAILED, LOGGED. Index on `user_id`. |
 | `outbox` | id, kind, payload (JSON), attempts, dispatched_at | Written in the same transaction as the change. Sent after commit (ADR-009). |
 
+Phase 7 added no tables and no migration. R08 stores its two sides in `validation_flag.evidence` (JSON); users and staff use the existing `user` and `user_region` tables.
+
 Differences from the plan's table list:
 
 - `outbox` has `dispatched_at` and `attempts`. It has no `sent_at`.

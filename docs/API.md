@@ -161,7 +161,10 @@ Institution users answer flags on their own records. The plan does not say which
 | GET | `/api/v1/admin/rules/{code}/diff` | AICTE admin | Compare two versions | No |
 | POST | `/api/v1/admin/rules/{code}/revert` | AICTE admin | Copy an old version into a new version | Yes |
 | GET, PUT | `/api/v1/admin/policies` and `/api/v1/admin/policies/{purpose}` | AICTE admin | Purpose policies and their field allow-lists | Yes (writes) |
-| GET, POST, PATCH | `/api/v1/admin/users` | AICTE admin | Users | Yes (writes) |
+| GET, POST | `/api/v1/admin/users` | AICTE admin | List (filters `role`, `institution`, `active`, `q`) and create. **BUILT** (Phase 7). | Yes (writes) |
+| PATCH | `/api/v1/admin/users/{id}` | AICTE admin | Role, active flag, name, institution, regions. **BUILT**. | Yes |
+| POST | `/api/v1/admin/users/{id}/reset-password` | AICTE admin | New temporary password, shown once. **BUILT**. | Yes |
+| POST | `/api/v1/admin/outbox/dispatch` | AICTE admin | Send queued email now, retry failures. Returns `{sent, failed, pending}`. **BUILT**. | No |
 | GET, POST, PATCH | `/api/v1/admin/regions` | AICTE admin | Regions | Yes (writes) |
 | GET, POST, PUT | `/api/v1/admin/windows[/{id}]` | AICTE admin | Submission windows and their ladders | Yes (writes) |
 | POST | `/api/v1/admin/windows/run-cycle` | AICTE admin | Run the reminder cycle now (idempotent) | Yes |
@@ -179,7 +182,9 @@ Institution users answer flags on their own records. The plan does not say which
 |---|---|---|---|---|
 | GET, POST | `/api/v1/institution/api-keys` | Institution admin (own) | List keys and create one. The key is shown once. | Yes (writes) |
 | POST | `/api/v1/institution/api-keys/{id}/revoke` | Institution admin (own) | Revoke a key | Yes |
-| GET, POST, PATCH | `/api/v1/institution/staff` | Institution admin (own) | Staff accounts | Yes (writes) |
+| GET, POST | `/api/v1/institutions/{id}/staff` | Institution admin (own) | List and create `INSTITUTION_STAFF`. **BUILT** (Phase 7), at this path. | Yes (writes) |
+| PATCH, DELETE | `/api/v1/institutions/{id}/staff/{user_id}` | Institution admin (own) | Rename, reactivate, or deactivate (DELETE deactivates, never deletes). **BUILT**. | Yes |
+| POST | `/api/v1/institutions/{id}/staff/{user_id}/reset-password` | Institution admin (own) | New temporary password, shown once. **BUILT**. | Yes |
 
 Every use of an API key is audited, not only creating and revoking it.
 
@@ -231,3 +236,12 @@ All under `/api/v1`. Bodies reject unknown keys (422). Purposes: `EMPLOYMENT`, `
 - `GET /verify/{token}` PUBLIC `{status: GENUINE|EXPIRED|REVOKED|TAMPERED, fields, issuer, issued_at, expires_at, purpose}`; `fields` only when genuine; everything is null when tampered. Audited as `VERIFICATION.CHECKED` with no actor. Rate limited per client address (`CHECK_MAX_PER_MINUTE`). Behind a proxy the address is the proxy's unless the deployment forwards the real one.
 - `GET /policies` `{items: [{purpose, allowed_fields, version}], fields}` read-only, any signed-in role (the verifier form lists only fields the policy allows). `GET /admin/clock` and `POST /admin/clock` also return `demo_mode`, which the audit screen uses to show the tamper demo.
 - `python -m app.seed --with-verification`: policies come with the default seed; this adds an approved verifier (verifier@demo.test, an invented employer), a pending one, and consents (valid, expired, withdrawn, other purpose only) for Kaveri students.
+
+## Phase 7 backend (built)
+
+- **R08.** `near_duplicate` flags carry `evidence.a`, `evidence.b` (`record_id`, masked `apaar_id`, `name`, `institution_id`, `institution`, `row_number`), `score` and `threshold`. Names of another institution's record are masked for institution users in `GET /flags/{id}`, `GET /uploads/{id}` and `GET /records/{id}`. `POST /flags/{id}/link` and `/dismiss` act on it as before.
+- **Users.** `GET|POST /admin/users` (`{items, total}`; create returns 201 with `{user, temporary_password?}`). Create body: `{email, full_name, role, institution_id?, regions[] (codes or ids), password?}`; `role` is one of the four non-verifier roles. 409 for a duplicate email, 422 for a weak password, a bad shape, an unknown region or any extra field. `PATCH /admin/users/{id}` takes any of `role`, `is_active`, `full_name`, `institution_id`, `regions` (409 for yourself, for the last AICTE admin, or for a verifier). Audit actions: `USER.CREATED`, `USER.UPDATED`, `USER.DEACTIVATED`, `USER.PASSWORD_RESET`.
+- **Staff.** `/institutions/{id}/staff` routes work for the institution admin of that institution only (403 and an audited refusal for any other institution, 404 for a user who is not that institution's staff). Create body: `{email, full_name, password?}`.
+- **Outbox.** `POST /admin/outbox/dispatch` (AICTE admin) sends queued email now. Email also goes out after commit in each use case and on every scheduler tick (ADR-024).
+- **Demo data.** `python -m app.seed --demo` empties the database, seeds, runs the checks, adds the window, an approved and a pending verifier and the consents. The older `--reset`, `--with-flags`, `--with-windows` and `--with-verification` switches still work. Demo password `Demo@1234` is for local demo users only.
+- Known gap: `GET /institutions/{id}/records` is not limited to one cycle, so after `--demo` it also lists the 2025 cohort rows seeded for R10.
