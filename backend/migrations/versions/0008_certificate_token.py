@@ -1,15 +1,15 @@
 """certificate token
 
-Revision ID: 0006
-Revises: 0005
+Revision ID: 0008
+Revises: 0007
 """
 from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = '0006'
-down_revision: Union[str, Sequence[str], None] = '0005'
+revision: str = '0008'
+down_revision: Union[str, Sequence[str], None] = '0007'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
