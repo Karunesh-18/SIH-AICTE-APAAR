@@ -1,0 +1,173 @@
+# Rules catalogue (R01 to R12)
+
+Last updated: 2026-11-09.
+
+Status: R01 to R12 are built in the backend. R08 (Phase 7) is described in its own section below.
+
+## How the rules work
+
+- Each rule has a code, R01 to R12. A flag, a report and a log line all use the same code.
+- Each rule is a pure function in `backend/app/domain/rules/`. It takes the input and the rule's parameters. It returns flag drafts.
+- Parameters live in the `rule_version` table as JSON. Changing a rule creates a new version. A flag keeps the version it was raised under.
+- Each rule has a `message_en` and a `message_hi`.
+- Rules only flag. They never reject, correct or penalise anything. An officer decides.
+- `hard_stop` is stored per rule version and shown on the flag detail. It is display only. No rule uses it to refuse, hold or change data.
+- A missing APAAR ID (R01) raises a flag and sets the record to `pending_apaar`. The record is counted on its own. It is not rejected.
+- R05 and R08 are cross-institution rules. The APAAR ID in an R05 flag is masked. The other institution's name is shown to the institutions involved. R08 masks names of another institution's record for institution users (see ROLES.md, Masking).
+
+### Scope
+
+| Scope | Meaning | Rules |
+|---|---|---|
+| `upload` | Checks one upload when it arrives | R01, R02, R03, R04, R06, R07 |
+| `cross` | Compares this upload with other institutions' current records. Runs on arrival and again when the data changes. | R05, R08 |
+| `scheduled` | Looks at patterns over time. Runs on a timer. | R09, R10, R11, R12 |
+
+### Summary
+
+| Code | Name | Catches | Scope | Phase |
+|---|---|---|---|---|
+| R01 | ID missing | A record with no APAAR ID | upload | 3 |
+| R02 | ID format | An ID that is not 12 digits after cleaning | upload | 3 |
+| R03 | Registry lookup | An ID the registry does not know, or details that do not match | upload | 3 |
+| R04 | Duplicate in file | The same ID twice in one upload | upload | 3 |
+| R05 | Same ID at two institutions | The same ID active at two institutions in one cycle | cross | 3 |
+| R06 | Intake cap | Enrolment above intake plus supernumerary seats | upload | 3 |
+| R07 | Consistency | Contradicting fields, or missing mandatory fields | upload | 3 |
+| R08 | Near duplicate | Similar name and same date of birth, with different or missing IDs | cross | 7 |
+| R09 | Late or missing submission | No submission by the end of the window | scheduled | 5 |
+| R10 | Enrolment jump | Enrolment rises by more than a set percentage on the last cycle | scheduled | 5 |
+| R11 | Pending APAAR share | Share of records pending APAAR is above a set percentage | scheduled | 5 |
+| R12 | Late bulk submission | A large share arrives in the last hours of the window, with an unusual category mix | scheduled | 5 |
+
+The thresholds in R10, R11 and R12 are placeholders. AICTE is expected to set them. The team has no data to justify a number.
+
+---
+
+## R01: ID missing
+
+- **Catches:** A row with no APAAR ID.
+- **Scope:** upload.
+- **Params:** none in the plan.
+- **Evidence:** row number, programme, cycle year.
+- **Outcome:** The flag asks the institution to add the ID. The record is held as `pending_apaar`. It is counted on its own and is not rejected. When an ID is added, the checks run again.
+- **Example:** "Row 23 has no APAAR ID. The record is held as pending APAAR until an ID is added. Nothing else in the file is affected."
+- **Decided:** The idea doc says a missing ID is "returned to the institution to fix" and also "held as pending APAAR, not rejected." The built rule follows the second reading: an R01 flag and status `pending_apaar`. See `HANDOFF.md`, open question 1.
+
+## R02: ID format
+
+- **Catches:** An ID that is not 12 digits after spaces and hyphens are removed.
+- **Scope:** upload.
+- **Params:**
+  - `checksum`: `none` or `verhoeff`. Default `none`. See ADR-002.
+- **Evidence:** the raw value, its length after cleaning, row number.
+- **Example:** "Row 58 has an APAAR ID with 11 digits. An APAAR ID has 12. Please correct it and upload the file again."
+- **Note:** With `checksum: none` the rule checks length and digits only. The plan does not claim a check digit.
+
+## R03: Registry lookup
+
+- **Catches:** An APAAR ID the registry does not know, or a name or date of birth that does not match the registry.
+- **Scope:** upload.
+- **Params:**
+  - `registry_enabled`: on or off. The rule runs only when a registry adapter is connected. In the demo this is `MockRegistry`.
+  - Name match: the shared TF-IDF cosine similarity (`name_threshold`, default 0.8). A score at or above the threshold is a match.
+  - Date of birth comparison rule: not set in the plan.
+- **Evidence:** the file value, the registry value, the similarity score for the name, row number.
+- **Outcome:** The record is held for review. A close name match is not flagged.
+- **Example:** "Row 17: the registry has no entry for this APAAR ID. The record is held for review. An officer will check it."
+- **Note:** The loose name match uses the same `similarity.py` as R08.
+
+## R04: Duplicate in file
+
+- **Catches:** The same APAAR ID on two or more rows of one upload.
+- **Scope:** upload.
+- **Params:** none.
+- **Evidence:** the ID, the row numbers, and the admission dates on those rows.
+- **Outcome:** The institution is asked which row is correct.
+- **Example:** "APAAR ID 9999 0000 0041 appears on rows 41 and 97 of this file, with different admission dates. Please tell us which row is correct and upload a corrected file."
+
+## R05: Same ID at two institutions
+
+- **Catches:** The same APAAR ID active at two institutions in the same cycle.
+- **Scope:** cross. Runs on arrival and when data changes.
+- **Params:**
+  - `same_cycle_only`: true. Matches only the same cycle year.
+  - `lookback_cycles`: 0. A check across earlier cycles is off by default. Proposed parameter.
+  - Withdrawn records do not count.
+- **Evidence:** both institutions, both programmes, both admission dates.
+- **Outcome:** Both institutions get an alert. An officer gets a flag. The platform does not decide which record is right.
+- **Example:** "This APAAR ID is listed at two institutions in this cycle: Kaveri Valley College (MBA, admitted 12 July) and Northfield Institute (MBA, admitted 3 October). If the student transferred, mark one record withdrawn."
+- **Built as:** The flag masks the APAAR ID. Its evidence carries the other institution's name, programme and admission date. The alert to the other institution names the uploading institution. The team has not confirmed that these names may be shown (HANDOFF, open question 8).
+- **Runs:** when a record arrives and when that record is corrected. It does not run again when the other side changes. Withdrawing a record does not close the flag.
+
+## R06: Intake cap
+
+- **Catches:** Enrolment in a programme above allowed enrolment.
+- **Scope:** upload.
+- **Params:** none beyond the programme's own values. `approved_intake` and `supernumerary_seats` are set by AICTE and are read-only for institutions.
+- **Rule:** allowed = approved intake + supernumerary seats. If seats are not set, allowed = intake alone.
+- **Evidence:** approved intake, supernumerary seats, allowed, actual count, and the excess rows. Excess rows are the last N by admission date. The evidence notes that this is only an ordering.
+- **Outcome:** The excess rows go to an officer. Nothing is rejected.
+- **Example:** "Allowed enrolment for this programme is 126 (intake 120 plus 6 supernumerary seats). The file lists 132 students, 6 more than allowed. An officer will review the 6 records listed below."
+
+## R07: Consistency
+
+- **Catches:** Fields that contradict each other, and mandatory fields that are missing.
+- **Scope:** upload.
+- **Params:** a list of checks, stored with the rule. Examples from the idea doc: an admission date in the future, and a year of study that does not exist for the programme. Which fields are mandatory per institution type is not set (open question).
+- **Evidence:** the field names, their values, the row number.
+- **Example:** "Row 88 has an admission date in a later year than the cycle year. Please check it and upload again."
+- **Note:** The list of checks is stored in the database, so AICTE can add a check without a code change.
+
+## R08: Near duplicate
+
+- **Catches:** Two records with similar names, the same date of birth, and different or missing APAAR IDs. They may be the same person.
+- **Scope:** cross. Runs when an upload arrives and when a record is corrected (`recheck_record`).
+- **Compares:** the current, non-withdrawn records of the same cycle, at the same institution and at every other institution. A pair is raised once. A pair of two records that were both stored earlier is not new and is not raised. A record of another cycle never matches.
+- **Params:** `threshold`, default 0.85 (a placeholder for AICTE to set). Method: TF-IDF over character n-grams of length 2 to 4, cosine similarity (`domain/similarity.py`, scikit-learn). The score depends only on the two names, so it can be recomputed from the evidence. Date of birth must be equal. If both records carry the same APAAR ID the rule stays silent (R04 or R05 speak for that).
+- **Evidence:** both records as `a` and `b` (record id, masked APAAR ID or none, name, institution, row number), `score`, `threshold`. The stored sentence names the masked IDs, the score and the threshold, never a name.
+- **Masking:** names inside the evidence of a record held by another institution are masked in the API for institution users (`P******* D*******`). AICTE roles see them. The other institution's record is evidence only; it is not linked to this flag.
+- **Outcome:** A suggestion only. An officer links the records (`POST /flags/{id}/link`, resolves the flag) or dismisses it. The platform never merges or rejects. A dismissed pair is not raised again after a correction. Region officers are told, as for R05 and R06.
+- **Example:** "Two records have a very similar name and the same date of birth. Rows 9, 10. ids: XXXX XXXX 1017 / XXXX XXXX 1018; score: 0.94; threshold: 0.85."
+- **Known limit:** the comparison starts from the date of birth, so a pair with a mistyped date of birth is not found.
+
+## R09: Late or missing submission
+
+- **Catches:** An institution has not submitted by the end of its submission window.
+- **Scope:** scheduled.
+- **Params:**
+  - The window's close date.
+  - The reminder ladder. The default from the idea doc: a reminder to the institution 30, 14 and 7 days before close, and on the closing day. A message to the regional officer 3 days after close if nothing has arrived. A message to the AICTE admin 10 days after.
+- **Evidence:** window, cycle year, close date, last upload date (if any).
+- **Outcome:** The institution appears on the late list. The ladder steps send messages.
+- **Example:** "No upload has arrived from Kaveri Valley College for the 2027 cycle. The window closed on 30 November. It is listed as late."
+
+## R10: Enrolment jump
+
+- **Catches:** Enrolment in a programme rises by more than a set percentage over the previous cycle.
+- **Scope:** scheduled.
+- **Params:**
+  - `jump_percent`: placeholder. AICTE is expected to set it.
+  - Needs the previous cycle's data to exist.
+- **Evidence:** this cycle's count, last cycle's count, the percentage change.
+- **Example:** "Malabar Pharmacy College's enrolment for B.Pharm is 48 percent above the previous cycle. The threshold is [set by AICTE]."
+
+## R11: Pending APAAR share
+
+- **Catches:** A large share of an institution's records has no APAAR ID.
+- **Scope:** scheduled.
+- **Params:**
+  - `pending_percent`: placeholder. AICTE is expected to set it.
+- **Evidence:** count of `pending_apaar` records, total records, the percentage.
+- **Example:** "18 percent of this institution's records are pending APAAR. The threshold is [set by AICTE]."
+
+## R12: Late bulk submission
+
+- **Catches:** A submission that arrives in one bulk in the last hours of the window, with an unusual mix of categories.
+- **Scope:** scheduled.
+- **Params:**
+  - `last_hours`: placeholder.
+  - `category_share_percent`: placeholder.
+- **Evidence:** upload time, share of rows that arrived in the last hours, the category mix.
+- **Example:** "Most of this upload arrived in the last 6 hours of the window, and most of it is in one admission category. The thresholds are [set by AICTE]."
+- **Note:** This is a rule, not a model. It flags a pattern. An officer judges it.

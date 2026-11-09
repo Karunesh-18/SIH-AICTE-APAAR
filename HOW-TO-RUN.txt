@@ -1,0 +1,19 @@
+HOW TO RUN THE APP (Windows)
+
+One-time: install these two free programs if you do not have them.
+  1. Python 3.11 or newer  https://www.python.org/downloads/  (tick "Add python.exe to PATH")
+  2. Node.js LTS           https://nodejs.org/
+
+Every time:
+  1. Double-click  Start-App.bat  in this folder.
+  2. Wait. The first run installs things and can take 5 to 10 minutes. Later runs take about 1 minute.
+  3. Your browser opens at http://localhost:3000. Sign in with
+       admin@demo.test   (AICTE admin)      password: Demo@1234
+     Other logins: officer@, inst-admin@, staff@, verifier@  (all @demo.test, same password).
+
+To stop: close the two black windows named "APAAR backend" and "APAAR frontend".
+To reset the demo data to the starting state: double-click Start-App.bat after running it once from a
+command prompt as   Start-App.bat -Reset
+
+All data is made up. This is a prototype, not an official AICTE system.
+If something goes wrong, take a screenshot of the window and send it to the team.

@@ -1,0 +1,280 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans), var(--font-devanagari), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  /* Status: Clear / Alert / Excess. Always pair with an icon and a label. */
+  --color-status-clear: var(--status-clear);
+  --color-status-clear-bg: var(--status-clear-bg);
+  --color-status-alert: var(--status-alert);
+  --color-status-alert-bg: var(--status-alert-bg);
+  --color-status-excess: var(--status-excess);
+  --color-status-excess-bg: var(--status-excess-bg);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Light: officer at a desk in office daylight. Cool-tinted neutrals (hue 230),
+   one verdigris accent (hue 192). Body text on background is about 16:1. */
+:root {
+  --background: oklch(0.985 0.003 230);
+  --foreground: oklch(0.22 0.02 245);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 245);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 245);
+  --primary: oklch(0.44 0.09 192);
+  --primary-foreground: oklch(0.985 0.005 192);
+  --secondary: oklch(0.955 0.006 230);
+  --secondary-foreground: oklch(0.28 0.02 245);
+  --muted: oklch(0.955 0.006 230);
+  --muted-foreground: oklch(0.47 0.02 245);
+  --accent: oklch(0.94 0.02 192);
+  --accent-foreground: oklch(0.32 0.07 192);
+  --destructive: oklch(0.5 0.19 27);
+  --border: oklch(0.9 0.008 230);
+  --input: oklch(0.88 0.01 230);
+  --ring: oklch(0.55 0.1 192);
+  --status-clear: oklch(0.42 0.11 152);
+  --status-clear-bg: oklch(0.95 0.04 152);
+  --status-alert: oklch(0.47 0.1 70);
+  --status-alert-bg: oklch(0.96 0.06 85);
+  --status-excess: oklch(0.47 0.18 27);
+  --status-excess-bg: oklch(0.95 0.035 27);
+  /* Chart series: dataviz reference palette, fixed slot order, validated (validate_palette.js)
+     light on #ffffff: all gates pass, worst adjacent CVD dE 9.1; slots 3,4,5 are under 3:1 so
+     every chart ships direct labels and a table view. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #6250d6;
+  --chart-8: #e34948;
+  --chart-other: #6b7280;
+  --chart-track: oklch(0.93 0.008 230);
+  --radius: 0.375rem;
+  --sidebar: oklch(0.965 0.006 230);
+  --sidebar-foreground: oklch(0.25 0.02 245);
+  --sidebar-primary: oklch(0.44 0.09 192);
+  --sidebar-primary-foreground: oklch(0.985 0.005 192);
+  --sidebar-accent: oklch(0.93 0.02 192);
+  --sidebar-accent-foreground: oklch(0.32 0.07 192);
+  --sidebar-border: oklch(0.9 0.008 230);
+  --sidebar-ring: oklch(0.55 0.1 192);
+}
+
+.dark {
+  --background: oklch(0.19 0.015 245);
+  --foreground: oklch(0.94 0.008 230);
+  --card: oklch(0.23 0.016 245);
+  --card-foreground: oklch(0.94 0.008 230);
+  --popover: oklch(0.23 0.016 245);
+  --popover-foreground: oklch(0.94 0.008 230);
+  --primary: oklch(0.72 0.1 192);
+  --primary-foreground: oklch(0.2 0.03 192);
+  --secondary: oklch(0.28 0.016 245);
+  --secondary-foreground: oklch(0.94 0.008 230);
+  --muted: oklch(0.28 0.016 245);
+  --muted-foreground: oklch(0.72 0.015 235);
+  --accent: oklch(0.3 0.04 192);
+  --accent-foreground: oklch(0.9 0.04 192);
+  --destructive: oklch(0.7 0.17 25);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.65 0.1 192);
+  --status-clear: oklch(0.78 0.13 152);
+  --status-clear-bg: oklch(0.3 0.05 152);
+  --status-alert: oklch(0.82 0.13 85);
+  --status-alert-bg: oklch(0.32 0.05 80);
+  --status-excess: oklch(0.74 0.15 27);
+  --status-excess-bg: oklch(0.31 0.06 27);
+  /* dark on #1c2027: all gates pass incl. 3:1 contrast, worst adjacent CVD dE 8.4. */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+  --chart-other: #9ca3af;
+  --chart-track: oklch(0.3 0.016 245);
+  --sidebar: oklch(0.21 0.016 245);
+  --sidebar-foreground: oklch(0.94 0.008 230);
+  --sidebar-primary: oklch(0.72 0.1 192);
+  --sidebar-primary-foreground: oklch(0.2 0.03 192);
+  --sidebar-accent: oklch(0.3 0.04 192);
+  --sidebar-accent-foreground: oklch(0.9 0.04 192);
+  --sidebar-border: oklch(1 0 0 / 11%);
+  --sidebar-ring: oklch(0.65 0.1 192);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Browser surfaces themed from the palette. color-scheme themes native select popups and arrows. */
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  select, select option {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 28%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  * {
+    scrollbar-color: var(--border) transparent;
+  }
+  /* Numerals line up in tables and counters. */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Devanagari needs more line height than Latin to avoid clipped matras. */
+  :lang(hi) {
+    line-height: 1.7;
+  }
+}
+
+/* Type scale: display / title / section / eyebrow / figure. Weights carry hierarchy, not size alone. */
+@layer components {
+  .t-display {
+    font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  .t-title {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .t-section {
+    font-size: 1.125rem;
+    line-height: 1.3;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .t-eyebrow {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .t-figure {
+    font-size: 2.25rem;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  /* Structural verdigris: a heavy rule that opens a section. */
+  .rule-primary {
+    border-top: 3px solid var(--primary);
+  }
+  .brand-panel {
+    background: var(--sidebar);
+    border-inline-end: 3px solid var(--primary);
+  }
+}
+
+/* Hindi voice: Noto Sans Devanagari reads small next to Latin, so lift the root size a little,
+   and give headings a tighter-but-safe line height with no negative tracking (it breaks conjuncts). */
+html:lang(hi) {
+  font-size: 106.25%;
+}
+:lang(hi) :is(.t-display, .t-title, .t-section, .t-eyebrow, .t-figure, h1, h2, h3) {
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+}
+:lang(hi) .t-display {
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* Landing: the waymark line draws once. Smooth anchor scrolling only when motion is welcome. */
+.waymark-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+  .waymark-line {
+    animation: waymark-draw 1.6s ease-out both;
+  }
+}
+@keyframes waymark-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Hindi text renders in Noto Sans Devanagari first, so Latin-only Geist never decides the glyphs. */
+:lang(hi) {
+  font-family: var(--font-devanagari), var(--font-geist-sans), system-ui, sans-serif;
+}

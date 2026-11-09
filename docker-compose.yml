@@ -1,0 +1,21 @@
+# UNTESTED: Docker is not installed on the dev machine. Verify before relying on it.
+services:
+  api:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes: ["./backend:/app", "apaar-data:/data"]
+    environment:
+      DATABASE_URL: sqlite:////data/apaar.db
+    command: sh -c "pip install -q . && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports: ["8000:8000"]
+  web:
+    image: node:22-slim
+    working_dir: /app
+    volumes: ["./frontend:/app"]
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    command: sh -c "npm ci && npm run dev -- -H 0.0.0.0"
+    ports: ["3000:3000"]
+    depends_on: [api]
+volumes:
+  apaar-data:
