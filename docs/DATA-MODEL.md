@@ -2,16 +2,40 @@
 
 Last updated: 2026-11-09.
 
-Status: proposed. No migrations exist yet. The tables below come from `docs/PLAN.md`. Anything added beyond the plan is marked.
+Status: Phase 1 tables are built, in one Alembic baseline migration (`backend/migrations/versions/0001_baseline_foundation.py`). Every other table is proposed. The tables below come from `docs/PLAN.md`. Anything added beyond the plan is marked.
 
 ## Conventions
 
 - Primary keys are UUIDs, except `audit_log`, which uses an integer `id`.
-- Tables carry `created_at` and `updated_at`.
+- Tables carry `created_at` and `updated_at`. Built tables use `IdMixin` and `Base` in `backend/app/db/base.py`, which add the UUID key.
 - `student_record` and `validation_flag` use `version_id_col` for optimistic locking.
 - Schema must work on SQLite (default) and Postgres.
 - APAAR IDs are normalised (spaces and hyphens removed) before they are stored or compared.
 - Times come from `clock.now()`.
+- Migrations use plain SQLAlchemy types. They do not import app types (ADR-011).
+
+## Built in Phase 1
+
+| Table | Built columns | Built checks and keys |
+|---|---|---|
+| `region` | id, code (unique, 4 chars), name (unique) | |
+| `institution` | id, aicte_id (unique), name, type, region_id, status, contact_email | `type` in ENGINEERING, MANAGEMENT, PHARMACY, OTHER. `status` in ACTIVE, UNDER_REVIEW. |
+| `programme` | id, institution_id, name, level, cycle_year, duration_years, approved_intake, supernumerary_seats | `level` in UG, PG, DIPLOMA. Intake and seats are 0 or more. Index on `institution_id`. |
+| `user` | id, email (unique), password_hash, full_name, role, institution_id, language, is_active | `role` is one of the five roles. `language` is `en` or `hi`. |
+| `user_region` | user_id, region_id | Composite primary key. |
+| `audit_log` | id (integer), occurred_at, actor_id, actor_role, action, entity_type, entity_id, before, after, prev_hash, hash | `prev_hash` is UNIQUE (see Key constraints). Genesis `prev_hash` is 64 zeros. |
+| `system_config` | key (primary key), value (JSON) | Holds the clock offset. |
+| `notification` | id, user_id, channel, subject, body, related_type, related_id, status, read_at, sent_at | `channel` in IN_APP, EMAIL, SMS. `status` in QUEUED, SENT, FAILED, LOGGED. Index on `user_id`. |
+| `outbox` | id, kind, payload (JSON), attempts, dispatched_at | Written in the same transaction as the change. Sent after commit (ADR-009). |
+
+Differences from the plan's table list:
+
+- `outbox` has `dispatched_at` and `attempts`. It has no `sent_at`.
+- `audit_log` and `system_config` do not carry `created_at` or `updated_at`. `audit_log` uses `occurred_at`.
+- `notification` has `channel` and `status`, which the plan did not list.
+- `institution` has `contact_email`, which the plan did not list.
+- `user` has `email`, `password_hash`, `full_name`, `is_active` and `language`. The plan's `user` row said only "login fields".
+- `audit_log` rows are written only by `services/audit.py`. Nothing else writes to the table.
 
 ## Tables
 
@@ -87,7 +111,7 @@ Flag states: `open`, `under_review`, `resolved`, `dismissed`, `ask_institution`.
 |---|---|---|---|
 | Partial unique index on `(apaar_id, programme_id, cycle_year)` where `is_current` and `apaar_id` is not null | `student_record` | One current record per student, per programme, per cycle. Superseded rows may repeat. Works on SQLite and Postgres. | Plan |
 | `UNIQUE(window, institution, step)` | `window_alert_log` | A reminder step fires once. A re-run is harmless. | Plan |
-| `UNIQUE(prev_hash)` | `audit_log` | Two writers cannot both extend one entry. Stops the chain from forking. | Plan |
+| `UNIQUE(prev_hash)` | `audit_log` | Two writers cannot both extend one entry. Stops the chain from forking. Built. A second concurrent writer gets an IntegrityError (HTTP 500) until a retry is added. | Plan |
 | `version_id_col` (optimistic locking) | `student_record`, `validation_flag` | Two people editing one row cannot overwrite each other silently. | Plan. The idea doc says this is not built yet. |
 | Stores only the hash of an API key | `api_key` | The key cannot be read back. | Plan |
 | `status` is one of submitted, valid, flagged, pending_apaar, withdrawn | `student_record` | Keeps the states to a known set. Enforced in `domain/status.py`. | Plan. A database CHECK is not in the plan. |

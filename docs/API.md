@@ -2,7 +2,28 @@
 
 Last updated: 2026-11-09.
 
-**Status: every endpoint in this file is PROPOSED. None are built yet.** The plan names the actions. The exact paths below are our wording, and they may change when the routes are written.
+**Status: the endpoints in the "Built" table below are in the code and tested. Every other endpoint in this file is PROPOSED.** The plan names the actions. The exact paths below are our wording. Where the built path differs from the plan, the built path wins and the row says so.
+
+## Built (Phase 1)
+
+| Method | Path | Who | Purpose | Audit |
+|---|---|---|---|---|
+| GET | `/health` | Public | Liveness check. Outside `/api/v1`. | No |
+| POST | `/api/v1/auth/login` | Anyone | Access and refresh tokens. Rate limited per email (in memory). | Yes (`AUTH.LOGIN`) |
+| POST | `/api/v1/auth/refresh` | Signed-in user | New access token | No |
+| GET | `/api/v1/auth/me` | Signed-in user | Current user, role and scope. Plan name was `/api/v1/me`. | No |
+| PATCH | `/api/v1/auth/me` | Signed-in user | Change own language (`en` or `hi`). Plan name was `/api/v1/me`. | Yes (`USER.LANGUAGE`) |
+| GET | `/api/v1/institutions` | Signed-in user, scoped by role and region | List institutions in scope | No |
+| GET | `/api/v1/institutions/{id}` | Signed-in user, scoped | One institution. Out of scope gives 403. | Refusals only (`ACCESS.REFUSED`) |
+| GET | `/api/v1/admin/audit` | AICTE admin | Paginated audit log (`limit`, `offset`). Plan name was `/api/v1/audit`. | No |
+| POST | `/api/v1/admin/audit/verify` | AICTE admin | Walk the hash chain. Returns ok, or the first broken ID. Plan name was `/api/v1/audit/verify`. | No |
+| POST | `/api/v1/admin/dev/tamper-audit` | AICTE admin, demo mode only (404 otherwise) | Edits one audit row on purpose. Plan name was `/api/v1/dev/tamper-audit`. | No (raw edit on purpose) |
+| GET | `/api/v1/admin/clock` | AICTE admin | Clock offset in days, and now | No |
+| POST | `/api/v1/admin/clock` | AICTE admin | Advance by `advance_days`, or `reset`. Saved in `system_config`. The plan said PUT. | Yes (`CLOCK.SET`) |
+| GET | `/api/v1/notifications` | Signed-in user (own). `?unread` filter. | In-app notifications | No |
+| POST | `/api/v1/notifications/{id}/read` | Signed-in user (own). 404 for other users' IDs. | Mark one as read | Yes (`NOTIFICATION.READ`) |
+
+Every built route appears in `backend/tests/test_permission_matrix.py`. A test fails if a new `/api/v1` route is not listed there (ADR-007).
 
 ## Conventions
 
@@ -40,10 +61,10 @@ The idea doc (section 18) gives some different paths. The plan replaces them:
 
 | Method | Path | Who | Purpose | Audit |
 |---|---|---|---|---|
-| POST | `/api/v1/auth/login` | Anyone | Get access and refresh tokens | Not set |
+| POST | `/api/v1/auth/login` | Anyone | Get access and refresh tokens. **BUILT.** | Yes (`AUTH.LOGIN`) |
 | POST | `/api/v1/auth/refresh` | Signed-in user | Get a new access token | Not set |
-| GET | `/api/v1/me` | Signed-in user | Current user, role and scope | No |
-| PATCH | `/api/v1/me` | Signed-in user | Change own language (`en` or `hi`) | Yes |
+| GET | `/api/v1/me` | Signed-in user | Current user, role and scope. **BUILT** as `/api/v1/auth/me`. | No |
+| PATCH | `/api/v1/me` | Signed-in user | Change own language (`en` or `hi`). **BUILT** as `/api/v1/auth/me`. | Yes |
 
 ## Uploads and submissions
 
@@ -123,7 +144,8 @@ Institution users answer flags on their own records. The plan does not say which
 
 | Method | Path | Who | Purpose | Audit |
 |---|---|---|---|---|
-| GET | `/api/v1/notifications` | Signed-in user (own). Polled by the bell. | List own notifications | No |
+| GET | `/api/v1/notifications` | Signed-in user (own). Polled by the bell. **BUILT.** | List own notifications | No |
+| POST | `/api/v1/notifications/{id}/read` | Signed-in user (own). **BUILT.** | Mark one as read. Not in the plan; added in Phase 1. | Yes |
 
 ## Admin
 
@@ -138,11 +160,11 @@ Institution users answer flags on their own records. The plan does not say which
 | GET, POST, PATCH | `/api/v1/admin/users` | AICTE admin | Users | Yes (writes) |
 | GET, POST, PATCH | `/api/v1/admin/regions` | AICTE admin | Regions | Yes (writes) |
 | GET, POST, PATCH | `/api/v1/admin/windows` | AICTE admin | Submission windows and their ladders | Yes (writes) |
-| GET, PUT | `/api/v1/admin/clock` | AICTE admin | Read or set the clock offset | Yes (writes) |
+| GET, POST | `/api/v1/admin/clock` | AICTE admin | Read or set the clock offset. **BUILT** with POST (plan said PUT). | Yes (writes) |
 | POST | `/api/v1/admin/alert-cycle` | AICTE admin | Run the reminder cycle now | Yes |
-| GET | `/api/v1/audit` | AICTE admin | Read the audit log | Not set |
-| POST | `/api/v1/audit/verify` | AICTE admin | Walk the chain. Returns ok, or the first broken ID. | Not set |
-| POST | `/api/v1/dev/tamper-audit` | AICTE admin, demo mode only | Changes one audit row on purpose, to show the check | Yes |
+| GET | `/api/v1/admin/audit` | AICTE admin | Read the audit log. **BUILT** at this path. | No |
+| POST | `/api/v1/admin/audit/verify` | AICTE admin | Walk the chain. Returns ok, or the first broken ID. **BUILT** at this path. | No |
+| POST | `/api/v1/admin/dev/tamper-audit` | AICTE admin, demo mode only | Changes one audit row on purpose, to show the check. **BUILT** at this path. | No (raw edit on purpose) |
 
 ## Institution admin
 
