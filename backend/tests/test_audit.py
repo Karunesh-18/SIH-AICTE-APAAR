@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import delete, text, update
+from sqlalchemy import delete, update
 from sqlalchemy.exc import IntegrityError
 
 from app.models.audit import AuditLog

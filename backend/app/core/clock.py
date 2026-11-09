@@ -1,11 +1,11 @@
 """Single source of 'now'. The demo can move time forward with an offset."""
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 _offset = timedelta(0)
 
 
 def now() -> datetime:
-    return datetime.now(timezone.utc) + _offset
+    return datetime.now(UTC) + _offset
 
 
 def set_offset(seconds: float) -> None:

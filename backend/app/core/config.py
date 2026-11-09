@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     refresh_days: int = 7
     demo_mode: bool = True
     login_max_attempts: int = 10
+    bcrypt_rounds: int = 12
 
 
 settings = Settings()
