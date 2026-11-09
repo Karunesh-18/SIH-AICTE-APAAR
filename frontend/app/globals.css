@@ -278,3 +278,15 @@ html:lang(hi) {
 :lang(hi) {
   font-family: var(--font-devanagari), var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Certificate record prints on A4 with no app chrome (the shell hides itself with print: utilities). */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+}

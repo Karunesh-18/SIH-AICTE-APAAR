@@ -17,6 +17,7 @@ from app.core import clock
 from app.core.config import settings
 from app.domain.apaar import mask, normalize
 from app.domain.consent import Allow, ConsentView, Request, decide
+from app.models.certificate import CertificateToken
 from app.models.consent import Consent, VerificationRequest, Verifier
 from app.models.enums import INSTITUTION_ROLES, Role
 from app.models.user import User
@@ -124,8 +125,12 @@ def check(db: Session, token: str) -> dict:
     except jwt.PyJWTError:
         claims = None
     if claims is not None:
+        jti = str(claims["jti"])
         row = db.scalars(select(VerificationRequest).where(
-            VerificationRequest.token_jti == str(claims["jti"]))).first()
+            VerificationRequest.token_jti == jti)).first()
+        if row is None:  # a printed certificate token has its own table (same revoke semantics)
+            row = db.scalars(select(CertificateToken).where(
+                CertificateToken.token_jti == jti)).first()
     if claims is None or row is None:
         out, entity = empty, "invalid"
     else:

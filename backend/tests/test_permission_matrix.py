@@ -114,6 +114,8 @@ MATRIX = {
     ("DELETE", "/api/v1/institutions/{kaveri}/staff/{muser}"): row(inst_admin=200),
     ("POST", "/api/v1/institutions/{kaveri}/staff/{muser}/reset-password"): row(inst_admin=200),
     ("POST", "/api/v1/records/{record}/withdraw"): row(admin=200, inst_admin=200, inst_staff=200),
+    ("POST", "/api/v1/records/{record}/certificate"): row(
+        admin=200, officer_south=200, inst_admin=200, inst_staff=200),
     ("POST", "/api/v1/consents"): row(admin=201, inst_admin=201, inst_staff=201),
     ("GET", "/api/v1/consents"): row(admin=200, officer_south=200, inst_admin=200, inst_staff=200),
     ("DELETE", "/api/v1/consents/{consent}"): row(admin=200, inst_admin=200, inst_staff=200),
