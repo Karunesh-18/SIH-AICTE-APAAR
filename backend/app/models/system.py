@@ -14,6 +14,18 @@ class SystemConfig(Base):
     value: Mapped[dict] = mapped_column(JSON)
 
 
+class RefreshToken(IdMixin, Base):
+    """One row per issued refresh token. Only the sha256 of its jti is stored (ADR-026)."""
+
+    __tablename__ = "refresh_token"
+    user_id: Mapped[str] = mapped_column(ForeignKey("user.id"), index=True)
+    family_id: Mapped[str] = mapped_column(String(36), index=True)  # one login session
+    jti_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    grace_used: Mapped[bool] = mapped_column(default=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class ApiKey(IdMixin, Base):
     """Per-institution key for machine submission. Only the sha256 of the token is stored."""
 

@@ -10,7 +10,7 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 - Backend: 1003 tests pass. Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean.
 - Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
 - Built but not checked in a browser: every screen, both themes, charts, Hindi rendering, dialogs and the QR scan.
-- Email: console by default; SMTP adapter built (EMAIL_BACKEND=smtp, ADR-026), fake-server tested only. SMS is a console stub.
+- Email: console by default; SMTP adapter built (EMAIL_BACKEND=smtp, ADR-027), fake-server tested only. SMS is a console stub.
 - Not built: encryption at rest, a job queue, object storage, and a registry lookup against real data.
 - Docker Compose is written but untested (Docker is not installed).
 
@@ -99,14 +99,14 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 - Docker Compose has not been run. Docker is not installed.
 - Hindi strings for the new screens have no native-speaker review.
 - The scheduler thread has not run in tests. Tests cover only the on and off switch.
-- SMS is a console stub. Email has an SMTP adapter (ADR-026), untested against a real provider.
+- SMS is a console stub. Email has an SMTP adapter (ADR-027), untested against a real provider.
 - Playwright was not used.
 
 ## Known limits
 
 - Rate limits are in memory, per process. The login limit is per email. A known email can be locked out for 5 minutes.
 - One Ed25519 signing key, with no rotation. It is not encrypted at rest. Replacing it invalidates every issued token (ADR-022).
-- Access and refresh tokens are kept in `localStorage`, so any script on the page can read them (ADR-013). The refresh token is not rotated. A copied refresh token works until it expires (7 days).
+- Access and refresh tokens are kept in `localStorage`, so any script on the page can read them (ADR-013). Refresh tokens rotate with reuse detection (ADR-026): a copied token stops working once the real client refreshes. A script that reads the current token can still use it until it is rotated or expires (7 days).
 - No forced password change at first login (ADR-025).
 - Audit verify cannot detect deletion of the last rows, because nothing after them points back. Two concurrent audit appends return HTTP 500, with no retry.
 - R05 runs when a record arrives and when it is corrected (ADR-016). It does not run again when the other side changes. Withdrawing a record does not close the flag. Only an officer closes it.
@@ -163,7 +163,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 1. Browser pass of every screen, as each demo user, in light and dark themes and in Hindi. Record what breaks.
 2. Visual check of the dashboard charts in both themes, against the validated palette.
 3. Run `docker compose up` on a machine with Docker. Fix what fails. Until then, the Docker path stays "untested".
-4. SMTP email adapter done (ADR-026, fake-server tested). A real SMS provider is not started; plug it into SmsAdapter.
+4. SMTP email adapter done (ADR-027, fake-server tested). A real SMS provider is not started; plug it into SmsAdapter.
 5. Native-speaker review of the Hindi strings for the new screens.
 6. Merge the stack in order, `#2` to `#14`, into `dev` (see `PROGRESS.md`). Then open the `dev` to `main` PR at this milestone.
 7. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.

@@ -16,6 +16,6 @@ from app.models.student import (  # noqa: F401
     Upload,
     ValidationFlag,
 )
-from app.models.system import ApiKey, SystemConfig  # noqa: F401
+from app.models.system import ApiKey, RefreshToken, SystemConfig  # noqa: F401
 from app.models.user import User, UserRegion  # noqa: F401
 from app.models.windows import SavedReport, SubmissionWindow, WindowAlertLog  # noqa: F401

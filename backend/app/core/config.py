@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     jwt_secret: str = DEFAULT_JWT_SECRET
     access_minutes: int = 30
     refresh_days: int = 7
+    refresh_grace_seconds: int = 10  # a just-rotated refresh token is accepted once more (tab race)
     demo_mode: bool = True
     scheduler: bool = False  # SCHEDULER=1 starts the window cycle even in demo mode
     scheduler_minutes: int = 15

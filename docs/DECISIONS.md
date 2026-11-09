@@ -230,7 +230,7 @@ Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling round
 
 **Consequences.**
 - Any script running on the page can read both tokens. A cross-site scripting bug gives an attacker both tokens.
-- The client keeps the same refresh token after a refresh. A copied refresh token works until it expires (7 days by default, `refresh_days`).
+- Refresh tokens now rotate (ADR-026). Before ADR-026 the client kept the same refresh token and a copy worked for 7 days.
 - Upgrade path: serve the frontend and the API under one origin behind a proxy, and send the tokens in httpOnly cookies. Add CSRF protection for cookie-based requests.
 
 ---
@@ -372,7 +372,21 @@ These are settled in `docs/PLAN.md`. They are listed here so that they are easy 
 
 ---
 
-## ADR-026: SMTP email adapter behind the existing interface
+## ADR-026: Refresh-token rotation with reuse detection
+
+**Status.** Accepted. Refines ADR-013.
+
+**Decision.** Every login starts a family (`refresh_token.family_id`). Each refresh token carries `jti` and `fam` claims; the server stores only the sha256 of the `jti` (table `refresh_token`, migration 0006). `POST /auth/refresh` returns a new access token and a new refresh token in the same family and marks the presented one used. A token that is unknown, revoked or expired is a plain 401. A token already used, outside the grace window, revokes the whole family and writes an `AUTH.REFRESH_REUSED` audit row (the legitimate user and the thief must both log in again); that commit happens before the 401 is returned. `POST /auth/logout` (body: the refresh token; always 204) revokes the family and audits `AUTH.LOGOUT`. Resetting a user's password revokes all of that user's families. Successful refreshes are not audited (dashboard-like). Frontend: `lib/api.ts` stores the rotated token, runs one refresh at a time per tab (concurrent 401s share one call) and signs out locally if refresh is refused; `logout()` calls the endpoint with `keepalive`.
+
+**Grace window.** Two tabs can send the same refresh token at once. For `refresh_grace_seconds` (default 10) after a token is used, it is accepted once more (`grace_used`). Only hashes are stored, so the earlier successor cannot be returned again; the second call is issued a fresh sibling token in the same family. Both tokens stay valid and each is single-use. A third presentation of the old token, or any use after the window, is reuse. Setting it to 0 turns the grace off.
+
+**Consequences.**
+- Time uses the real clock, not the demo clock, to match JWT expiry.
+- A thief who replays a stolen token inside the grace window of the real client's refresh is not detected; one who replays later is. A script that reads the current token from `localStorage` still holds a working token (ADR-013 is unchanged).
+- Expired rows are not purged; no cleanup job is built.
+- The logout request is best effort; if it fails the token lives until expiry.
+
+## ADR-027: SMTP email adapter behind the existing interface
 
 **Status.** Accepted. Tested against a fake SMTP server only; untested against a real provider.
 

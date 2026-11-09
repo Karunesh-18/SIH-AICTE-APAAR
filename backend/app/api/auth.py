@@ -1,8 +1,7 @@
 from collections import defaultdict
 from datetime import timedelta
 
-import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,10 +9,10 @@ from app.api.deps import get_current_user
 from app.api.schemas import LanguageIn, LoginIn, RefreshIn, UserOut
 from app.core import clock
 from app.core.config import settings
-from app.core.security import decode_token, make_token, verify_password
+from app.core.security import make_token, verify_password
 from app.db.session import get_db, uow
 from app.models.user import User
-from app.services import audit
+from app.services import audit, sessions
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -45,23 +44,28 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
     with uow(db):
         audit.append(db, actor_id=user.id, actor_role=user.role, action="AUTH.LOGIN",
                      entity_type="user", entity_id=user.id)
+        refresh_token = sessions.issue(db, user.id)
     return {
         "access_token": make_token(user.id, "access"),
-        "refresh_token": make_token(user.id, "refresh"),
+        "refresh_token": refresh_token,
         "token_type": "bearer",
     }
 
 
 @router.post("/refresh")
 def refresh(body: RefreshIn, db: Session = Depends(get_db)):
-    try:
-        claims = decode_token(body.refresh_token, "refresh")
-    except jwt.PyJWTError:
-        raise HTTPException(401, "Invalid or expired token") from None
-    user = db.get(User, claims["sub"])
-    if user is None or not user.is_active:
+    out = sessions.rotate(db, body.refresh_token)
+    if out is None:
         raise HTTPException(401, "Invalid or expired token")
-    return {"access_token": make_token(user.id, "access"), "token_type": "bearer"}
+    user, refresh_token = out
+    return {"access_token": make_token(user.id, "access"), "refresh_token": refresh_token,
+            "token_type": "bearer"}
+
+
+@router.post("/logout", status_code=204)
+def logout(body: RefreshIn, db: Session = Depends(get_db)):
+    sessions.logout(db, body.refresh_token)
+    return Response(status_code=204)
 
 
 @router.get("/me", response_model=UserOut)
