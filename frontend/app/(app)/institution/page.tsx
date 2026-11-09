@@ -11,6 +11,7 @@ import { pollInterval } from "@/lib/poll";
 import { formatDateTime } from "@/lib/status";
 import type { Page as Paged, Upload } from "@/lib/types";
 import { useApiQuery } from "@/lib/use-api";
+import { InstitutionStatus } from "@/components/institution-status";
 
 function Home() {
   const { t } = useAuth();
@@ -23,13 +24,14 @@ function Home() {
   return (
     <>
       <PageHeader title={t("home.title")} actions={latest ? upload : undefined} />
+      <InstitutionStatus />
       {q.isPending && <Skeleton className="h-20 w-full max-w-xl" />}
       {q.isError && <QueryError error={q.error} onRetry={() => q.refetch()} />}
       {q.data && !latest && (
         <EmptyState title={t("home.none")} hint={t("home.noneHint")} action={upload} />
       )}
       {latest && (
-        <section aria-labelledby="latest-h" className="flex max-w-xl flex-col gap-3">
+        <section aria-labelledby="latest-h" className="mt-8 flex max-w-xl flex-col gap-3">
           <h2 id="latest-h" className="font-semibold">{t("home.latest")}</h2>
           <p className="text-sm text-muted-foreground">
             {formatDateTime(latest.created_at)} - {latest.cycle_year} - {t(`upload.status.${latest.status}`)}

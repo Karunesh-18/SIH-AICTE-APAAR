@@ -18,6 +18,7 @@ const INSTITUTION: NavItem[] = [
   { href: "/institution/upload", key: "nav.upload" },
   { href: "/institution/records", key: "nav.records" },
   { href: "/institution/flags", key: "nav.flags" },
+  { href: "/reports", key: "nav.reports" },
   { href: "/institution/consents", key: "nav.consents" },
   { href: "/institution/verifications", key: "nav.verifications" },
 ];
