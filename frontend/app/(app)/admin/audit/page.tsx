@@ -15,12 +15,14 @@ import { api } from "@/lib/api";
 import { filterAudit, type AuditFilters } from "@/lib/audit";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/status";
-import type { AuditRow, ClockState } from "@/lib/types";
+import type { AuditRow, Checkpoint, CheckpointCheck, ClockState } from "@/lib/types";
 import { useApiQuery } from "@/lib/use-api";
 
 const LIMIT = 100;
 const ROLES = ["AICTE_ADMIN", "AICTE_OFFICER", "INSTITUTION_ADMIN", "INSTITUTION_STAFF", "VERIFIER", "PUBLIC"];
-type Chain = { ok: boolean; count: number; first_broken_id: number | null };
+type Chain = { ok: boolean; count: number; first_broken_id: number | null; checkpoint?: CheckpointCheck | null };
+const CP_KEY = { missing_rows: "audit.cp.missing", hash_mismatch: "audit.cp.hash", bad_signature: "audit.cp.sig" } as const;
+const short = (h: string) => h.slice(0, 12);
 
 function Audit() {
   const { t } = useAuth();
@@ -35,6 +37,10 @@ function Audit() {
   const [checking, setChecking] = useState(false);
   const [askTamper, setAskTamper] = useState(false);
   const [busy, setBusy] = useState(false);
+  const cps = useApiQuery<Checkpoint[]>("/audit/checkpoints");
+  const [created, setCreated] = useState<Checkpoint | null>(null);
+  const [askTrunc, setAskTrunc] = useState(false);
+  const [truncated, setTruncated] = useState<number | null>(null);
   const [tampered, setTampered] = useState<number | null>(null);
   const rows = useMemo(() => filterAudit(q.data?.items ?? [], f), [q.data, f]);
   const entities = useMemo(() => [...new Set((q.data?.items ?? []).map((r) => r.entity_type).filter(Boolean) as string[])].sort(), [q.data]);
@@ -64,6 +70,31 @@ function Audit() {
     setBusy(false);
   }
 
+  async function createCp() {
+    setBusy(true);
+    try {
+      setCreated(await api.post<Checkpoint>("/admin/audit/checkpoint"));
+      qc.invalidateQueries({ queryKey: ["api"] });
+    } catch {
+      toast.error(t("error.action"));
+    }
+    setBusy(false);
+  }
+
+  async function truncate() {
+    setBusy(true);
+    try {
+      await api.post("/admin/dev/truncate-audit?n=3");
+      setTruncated(3);
+      setChain(null);
+      qc.invalidateQueries({ queryKey: ["api"] });
+    } catch {
+      toast.error(t("error.action"));
+    }
+    setAskTrunc(false);
+    setBusy(false);
+  }
+
   const columns: Col<AuditRow>[] = [
     { accessorKey: "id", header: t("audit.colId") },
     { accessorKey: "occurred_at", header: t("audit.colWhen"), cell: (c) => formatDateTime(c.getValue() as string) },
@@ -78,7 +109,9 @@ function Audit() {
       <PageHeader title={t("audit.title")} description={t("audit.intro")}
         actions={<>
           <Button variant="outline" disabled={checking} onClick={verify}>{checking ? t("audit.verifying") : t("audit.verify")}</Button>
+          <Button variant="outline" disabled={busy} onClick={createCp}>{t("audit.cp.create")}</Button>
           {demo && <Button variant="destructive" onClick={() => setAskTamper(true)}>{t("audit.tamper")} ({t("audit.tamperDemo")})</Button>}
+          {demo && <Button variant="destructive" onClick={() => setAskTrunc(true)}>{t("audit.truncate")} ({t("audit.tamperDemo")})</Button>}
         </>} />
       <div aria-live="polite" className="mb-4 flex flex-col gap-2">
         {chain && (chain.ok ? (
@@ -90,8 +123,38 @@ function Audit() {
             <XOctagon aria-hidden className="size-5" />{t("audit.broken").replace("{id}", String(chain.first_broken_id))}
           </p>
         ))}
+        {chain && (
+          <p role={chain.checkpoint && !chain.checkpoint.ok ? "alert" : "status"} className="text-sm">
+            {!chain.checkpoint ? t("audit.cp.none")
+              : chain.checkpoint.ok || !chain.checkpoint.reason ? t("audit.cp.ok")
+              : t(CP_KEY[chain.checkpoint.reason]).replace("{seq}", String(cps.data?.[0]?.seq ?? ""))}
+          </p>
+        )}
+        {created && (
+          <p role="status" data-testid="cp-new" className="text-sm">
+            {t("audit.cp.created").replace("{seq}", String(created.seq)).replace("{hash}", short(created.hash))
+              .replace("{n}", String(created.count)).replace("{when}", formatDateTime(created.signed_at))}
+          </p>
+        )}
+        {truncated !== null && <p role="status" className="text-sm text-muted-foreground">{t("audit.truncated").replace("{n}", String(truncated))}</p>}
         {tampered !== null && <p role="status" className="text-sm text-muted-foreground">{t("audit.tampered").replace("{id}", String(tampered))}</p>}
       </div>
+      {!!cps.data?.length && (
+        <section aria-label={t("audit.cp.recent")} className="mb-4 text-xs">
+          <h2 className="mb-1 font-medium">{t("audit.cp.recent")}</h2>
+          <ul className="flex flex-col gap-1">
+            {cps.data.slice(0, 5).map((c) => (
+              <li key={c.seq} className="flex flex-wrap items-center gap-2">
+                <span>#{c.seq}</span><span className="font-mono">{short(c.hash)}</span><span>{formatDateTime(c.signed_at)}</span>
+                <Button type="button" variant="outline" size="sm"
+                  onClick={() => navigator.clipboard.writeText(c.token).then(() => toast.success(t("audit.cp.copied")), () => toast.error(t("error.action")))}>
+                  {t("audit.cp.copy")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <form className="mb-3 flex flex-wrap items-end gap-3" onSubmit={(e) => e.preventDefault()}>
         <FilterSelect id="a-role" label={t("audit.filterActor")} value={f.role ?? ""} onChange={(v) => set("role", v)}
           options={ROLES.map((r) => ({ value: r, label: r }))} any={t("audit.anyActor")} />
@@ -118,6 +181,8 @@ function Audit() {
         labels={{ empty: t("audit.empty"), error: t("error.generic"), retry: t("state.retry"), prev: t("table.prev"), next: t("table.next") }} />
       <ConfirmDialog open={askTamper} title={t("audit.tamperTitle")} body={t("audit.tamperBody")} confirmLabel={t("audit.tamperConfirm")}
         cancelLabel={t("dialog.cancel")} pending={busy} onConfirm={tamper} onClose={() => setAskTamper(false)} />
+      <ConfirmDialog open={askTrunc} title={t("audit.truncTitle")} body={t("audit.truncBody")} confirmLabel={t("audit.truncConfirm")}
+        cancelLabel={t("dialog.cancel")} pending={busy} onConfirm={truncate} onClose={() => setAskTrunc(false)} />
     </>
   );
 }

@@ -136,6 +136,9 @@ export type AuditRow = {
   entity_type: string | null; entity_id: string | null; before: unknown; after: unknown;
 };
 
+export type Checkpoint = { seq: number; hash: string; count: number; signed_at: string; token: string };
+export type CheckpointCheck = { ok: boolean; reason: "missing_rows" | "hash_mismatch" | "bad_signature" | null };
+
 export type UserRow = {
   id: string; email: string; full_name: string; role: string; institution_id: string | null;
   institution_name: string | null; is_active: boolean; language: string; regions: string[];
