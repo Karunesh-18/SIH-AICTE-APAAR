@@ -1,0 +1,16 @@
+[project]
+name = "waymark-apaar-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi", "uvicorn[standard]", "sqlalchemy", "alembic", "pydantic-settings",
+  "pyjwt", "bcrypt", "cryptography", "apscheduler", "python-multipart",
+  "openpyxl", "xlrd", "scikit-learn",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100

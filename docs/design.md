@@ -6,15 +6,17 @@ Student-level data submission, validation, monitoring and consent-based verifica
 ## Built vs proposed
 | Part | Status |
 |---|---|
-| JWT login, role guards | Built (Waymark prototype) |
-| Hash-chained audit log with verify | Built |
-| Institution registry, obligation and alert engine, compliance dashboard, notifications | Built |
+| JWT login, role guards | Proposed (rebuilt in this repo from Phase 1) |
+| Hash-chained audit log with verify | Proposed (rebuilt in this repo from Phase 1) |
+| Institution registry, obligation and alert engine, compliance dashboard, notifications | Proposed (rebuilt in this repo from Phase 1) |
 | Student upload (CSV/Excel and REST API) | Proposed |
 | APAAR validation through a registry adapter | Proposed; live lookup needs authorisation from the issuing authority |
 | Intake-cap, cross-institution duplicate and consistency checks | Proposed |
 | TF-IDF near-duplicate name flag | Proposed (suggestion only) |
 | Privacy masking of student fields in the API | Proposed |
 | Consent-based verification, signed result, QR | Proposed |
+
+Built so far in this repo: project scaffold, /health endpoint, design tokens only.
 
 ## Data per student
 APAAR ID (unique key); programme, year, admission date; approved intake and actual enrolment (per programme); supernumerary seats; NRI category; OCI status; foreign national (FN) status; consent flag and source.
