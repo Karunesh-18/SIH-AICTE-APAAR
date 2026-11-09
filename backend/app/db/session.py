@@ -31,6 +31,11 @@ def get_db():
         db.close()
 
 
+def get_session_factory():
+    """Background work opens its own session; tests override this to reuse theirs."""
+    return SessionLocal
+
+
 @contextmanager
 def uow(db):
     """One transaction per use case: commit on success, roll back on any error."""

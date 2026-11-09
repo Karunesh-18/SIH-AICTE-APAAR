@@ -1,0 +1,7 @@
+{
+  "nav.dashboard": "डैशबोर्ड", "nav.review": "समीक्षा कतार", "nav.reports": "रिपोर्ट",
+  "nav.verifications": "सत्यापन", "nav.home": "मुख्य पृष्ठ", "nav.upload": "अपलोड",
+  "nav.records": "रिकॉर्ड", "nav.flags": "फ़्लैग", "nav.consents": "सहमतियाँ",
+  "auth.title": "साइन इन", "auth.email": "ईमेल", "auth.password": "पासवर्ड",
+  "auth.submit": "साइन इन", "auth.signOut": "साइन आउट"
+}

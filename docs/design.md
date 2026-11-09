@@ -8,20 +8,22 @@ Student-level data submission, validation, monitoring and consent-based verifica
 ## Built vs proposed
 | Part | Status |
 |---|---|
-| JWT login (access and refresh), role guards, object-level institution scope | Built (backend). Frontend login proposed. |
+| JWT login (access and refresh), role guards, object-level institution scope | Built (backend). Frontend login built, not yet checked in a browser. |
+| Frontend API client, auth context and role-aware shell | Built. Tokens in `localStorage` (prototype only, ADR-013). |
 | Hash-chained audit log with verify and tamper demo | Built (backend) |
 | Institution registry (institutions API and models), region model | Built (backend). Region and user admin proposed. |
 | Obligation and alert engine, compliance dashboard | Proposed |
 | Notifications (in-app, with a transactional outbox) | Built (backend). Email is a console stub. |
 | Demo clock (advance and reset) | Built (backend) |
-| Student upload (CSV/Excel and REST API) | Proposed |
+| Student, flag, rule and registry tables; synthetic seed | Built (tables and seed). No ingestion or checks yet. |
+| Student upload (CSV/XLSX/XLS/JSON and REST API with API keys), rules R01 to R07, rule versions | Built (backend). Screens proposed. In-process background task, not a queue. |
 | APAAR validation through a registry adapter | Proposed; live lookup needs authorisation from the issuing authority |
 | Intake-cap, cross-institution duplicate and consistency checks | Proposed |
 | TF-IDF near-duplicate name flag | Proposed (suggestion only) |
 | Privacy masking of student fields in the API | Proposed |
 | Consent-based verification, signed result, QR | Proposed |
 
-Built so far in this repo: project scaffold, `/health`, the Phase 1 backend (auth, audit chain, institutions API, clock, notifications), and the design tokens. Everything student-related is proposed.
+Built so far in this repo: project scaffold, `/health`, the Phase 1 backend (auth, audit chain, institutions API, clock, notifications), the Phase 1 frontend login, API client and shell, the Phase 2 student data tables with the synthetic seed, and the design tokens. Upload, the checks and the record and flag screens are proposed.
 
 ## Data per student
 APAAR ID (unique key); programme, year, admission date; approved intake and actual enrolment (per programme); supernumerary seats; NRI category; OCI status; foreign national (FN) status; consent flag and source.
@@ -45,4 +47,4 @@ Advisory only; every flag shows its rule; synthetic data only; method names stat
 ## Data model sketch
 `institution` 1-n `programme` (approved_intake, supernumerary_seats) 1-n `student_record` (apaar_id, status, nri, oci, fn, admission_date, consent) ; `validation_flag` (record, rule, reason, state) ; `verification_request` (verifier, purpose, consent_ref, result, signed_token) ; `audit_log` (hash-chained).
 
-The Phase 1 tables (`region`, `institution`, `programme`, `user`, `user_region`, `audit_log`, `system_config`, `notification`, `outbox`) are built. See `DATA-MODEL.md`.
+The Phase 1 tables (`region`, `institution`, `programme`, `user`, `user_region`, `audit_log`, `system_config`, `notification`, `outbox`) and the Phase 2 tables (`upload`, `student_record`, `validation_flag`, `flag_record`, `flag_event`, `rule`, `rule_version`, `registry_entry`) are built. See `DATA-MODEL.md`.
