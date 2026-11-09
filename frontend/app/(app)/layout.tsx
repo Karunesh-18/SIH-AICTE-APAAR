@@ -8,6 +8,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 import { navFor } from "@/lib/nav";
+import { ClockBanner } from "@/components/clock-banner";
 
 function Shell({ children }: { children: ReactNode }) {
   const { user, loading, signOut, t } = useAuth();
@@ -41,8 +42,9 @@ function Shell({ children }: { children: ReactNode }) {
         </nav>
         <p className="hidden text-xs text-muted-foreground md:block">{t("app.notice")}</p>
       </aside>
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-end gap-3 border-b border-border px-6 py-3">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex flex-wrap items-center justify-end gap-3 border-b border-border px-6 py-3">
+          <ClockBanner />
           <span className="text-sm text-muted-foreground">{user.full_name}</span>
           <NotificationBell />
           <ThemeToggle />

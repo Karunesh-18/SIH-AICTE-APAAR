@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 import { FLAG_STATES, RULE_CODES, filtersFromQuery, filtersToQuery, type Filters } from "@/lib/review";
 import { formatDateTime } from "@/lib/status";
-import type { FlagRow, Page } from "@/lib/types";
+import type { FlagRow, InstitutionRow, Page, RegionRow } from "@/lib/types";
 import { useApiQuery } from "@/lib/use-api";
 
 const LIMIT = 25;
@@ -34,6 +34,8 @@ export function FlagQueue({ mode }: { mode: "aicte" | "institution" }) {
     Object.entries({ state: f.state, rule: f.rule, institution: aicte ? f.institution : "", region: aicte ? f.region : "",
                      age_days: f.age_days, limit: String(LIMIT), offset: String(f.offset) }).filter(([, v]) => v));
   const q = useApiQuery<Page<FlagRow>>(`/flags?${api}`);
+  const insts = useApiQuery<InstitutionRow[]>("/institutions", { enabled: aicte });
+  const regions = useApiQuery<RegionRow[]>("/regions", { enabled: aicte });
   const active = f.state || f.rule || f.institution || f.region || f.age_days;
 
   const columns: Col<FlagRow>[] = [
@@ -68,13 +70,15 @@ export function FlagQueue({ mode }: { mode: "aicte" | "institution" }) {
             {any}{RULE_CODES.map((r) => <option key={r} value={r}>{r} {t(`rule.${r}`)}</option>)}
           </select>)}
         {aicte && field("f-inst", t("filter.institution"),
-          <Input id="f-inst" className="w-44" defaultValue={f.institution} key={`i${f.institution}`}
-                 onBlur={(e) => e.target.value !== f.institution && set({ institution: e.target.value.trim() })}
-                 onKeyDown={(e) => e.key === "Enter" && set({ institution: e.currentTarget.value.trim() })} />)}
+          <select id="f-inst" className={`${sel} max-w-56`} value={f.institution} onChange={(e) => set({ institution: e.target.value })}>
+            <option value="">{t("filter.allInstitutions")}</option>
+            {(insts.data ?? []).map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+          </select>)}
         {aicte && field("f-region", t("filter.region"),
-          <Input id="f-region" className="w-32" defaultValue={f.region} key={`r${f.region}`}
-                 onBlur={(e) => e.target.value !== f.region && set({ region: e.target.value.trim() })}
-                 onKeyDown={(e) => e.key === "Enter" && set({ region: e.currentTarget.value.trim() })} />)}
+          <select id="f-region" className={sel} value={f.region} onChange={(e) => set({ region: e.target.value })}>
+            <option value="">{t("filter.allRegions")}</option>
+            {(regions.data ?? []).map((r) => <option key={r.id} value={r.code}>{r.name}</option>)}
+          </select>)}
         {field("f-age", t("filter.age"),
           <Input id="f-age" type="number" min={0} className="w-28" defaultValue={f.age_days} key={`a${f.age_days}`}
                  onBlur={(e) => e.target.value !== f.age_days && set({ age_days: e.target.value })}

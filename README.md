@@ -33,8 +33,8 @@ The backend has its Phase 1 foundation built: login, roles, the audit chain with
 | Frontend: upload, receipt with flags, institution home, records (masked fields), API keys, rule versions with edit, diff and revert | Built. vitest, tsc, eslint and `next build` pass. Not checked in a browser. |
 | Registry lookup against a mock registry (R03) | Proposed |
 | Review queue, flag notes, record versions and withdrawal | Built in the backend (Phase 4); no screens yet |
-| Submission windows, reminders, late list | Proposed |
-| Dashboards, reports, scheduled rules R09 to R12 | Proposed |
+| Submission windows with reminder ladder, late list, scheduled rules R09 to R12, dashboards and reports (backend, Phase 5) | Built. Tests pass. |
+| Phase 5 screens: AICTE dashboard with intake and flags-by-rule charts, institution detail, institution home status, reports (run, CSV export, save), submission windows and demo clock admin, demo clock banner | Built (frontend). Vitest, tsc, eslint and `next build` pass. Not checked in a browser. |
 | Consent, verifier approval, Ed25519 signed results, QR check | Proposed |
 | Near-duplicate names with TF-IDF (R08) | Proposed |
 | English and Hindi text | Proposed (the API stores a language per user) |
