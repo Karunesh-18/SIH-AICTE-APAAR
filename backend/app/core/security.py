@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -19,12 +20,12 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def make_token(user_id: str, kind: str, minutes: float | None = None) -> str:
+def make_token(user_id: str, kind: str, minutes: float | None = None, **claims) -> str:
     # Real time, not the demo clock: JWT libraries verify expiry against the real clock.
     if minutes is None:
         minutes = settings.access_minutes if kind == "access" else settings.refresh_days * 1440
     exp = datetime.now(UTC) + timedelta(minutes=minutes)
-    return jwt.encode({"sub": user_id, "typ": kind, "exp": exp}, settings.jwt_secret, ALGORITHM)
+    return jwt.encode({"sub": user_id, "typ": kind, "exp": exp, "jti": uuid.uuid4().hex, **claims}, settings.jwt_secret, ALGORITHM)
 
 
 def decode_token(token: str, kind: str) -> dict:

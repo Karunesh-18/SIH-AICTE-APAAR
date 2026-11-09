@@ -78,7 +78,9 @@ function CheckResult() {
               <Icon aria-hidden className="size-6" />
               {t(v.titleKey)}
             </p>
-            <p className="text-sm text-foreground">{t(v.bodyKey)}</p>
+            <p className="text-sm text-foreground">
+              {t(v.status === "GENUINE" && q.data.purpose === "CERTIFICATE" ? "verify.genuine.cert.body" : v.bodyKey)}
+            </p>
           </section>
           {v.showFields && q.data.fields && (
             <section aria-labelledby="conf-h" className="flex flex-col gap-2">

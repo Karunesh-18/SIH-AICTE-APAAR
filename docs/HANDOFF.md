@@ -9,8 +9,8 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 - All eight phases of `PLAN.md` are built. Phase status and PR numbers are in `PROGRESS.md`.
 - Backend: 1003 tests pass. Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean.
 - Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
-- Browser pass partly done on 2026-11-09 (Playwright on installed Chrome). Most screens are covered, and eight issues were found (see "Browser pass findings"). Still unchecked: see Next step 1.
-- Stubs: email and SMS write to the console. Real SMTP and SMS are not built.
+- Browser pass done on 2026-11-09 (Playwright on installed Chrome, scripts kept outside the repo): every role, every list screen in light and dark, Hindi on the admin screens, detail pages, public pages, mobile, and the consent, verification, audit-tamper and flag-action flows. Still unchecked: a QR scan with a device, a real file upload, the demo clock and submission windows, Hindi on institution and verifier screens, a production build.
+- Email: console by default; SMTP adapter built (EMAIL_BACKEND=smtp, ADR-027), fake-server tested only. SMS is a console stub.
 - Not built: encryption at rest, a job queue, object storage, and a registry lookup against real data.
 - Docker Compose is written but untested (Docker is not installed).
 
@@ -101,26 +101,30 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 - Docker Compose has not been run. Docker is not installed.
 - Hindi strings for the new screens have no native-speaker review.
 - The scheduler thread has not run in tests. Tests cover only the on and off switch.
-- Email and SMS are console stubs. No real provider is wired.
+- SMS is a console stub. Email has an SMTP adapter (ADR-027), untested against a real provider.
 
 ## Browser pass findings (2026-11-09)
 
-Results: no HTTP 4xx or 5xx, no crashes, no horizontal overflow, charts render in dark mode and Hindi, and the bad-token page shows "Could not be verified".
+Results: no HTTP 4xx or 5xx, no crashes, no horizontal overflow, charts render in dark mode and Hindi. The consent record and withdraw, verification (granted and refused), signed-token check page, altered-token page, audit tamper and verify, flag dismiss with a note, and the rule, flag and upload detail pages all worked.
 
-- Hydration mismatch on `/login`, only when the OS colour scheme is dark. React regenerates the tree. The theme toggle label is the likely cause.
-- Base UI warning on `/institution`: a component with `nativeButton=true` renders a non-button element.
-- Hindi gaps on the admin dashboard: region names (East, South, North, West), date format, and status badges show "स्पष्ट (Clear)" with English in brackets.
-- Records status filter shows the raw value `all`.
-- Reports "Report" select truncates its label.
-- Login page shows a "Demo only / Demo accounts" box. This section says demo buttons are off by default. Check whether `frontend/.env.local` sets `NEXT_PUBLIC_DEMO`.
-- Dashboard shows Kaveri as 131/126. The walk-through says 132. Likely row 60 (dated 2027) is excluded. Confirm.
-- Dev only: the Next "Insight" badge overlaps the sidebar footer. The "instant navigation" console error on every route is Next dev noise.
+Fixed in PRs #16, #17 and #18 (merged to `dev`):
+- Hydration mismatch on `/login` in dark mode (theme toggle).
+- Base UI `nativeButton` warning on `/institution`.
+- Hindi gaps on the dashboard (regions, dates, state badges), and the Records status filter showing the raw value `all`.
+- Reports select truncating its label.
+- Raw `ev.*` keys on R07 to R12 flag evidence (20 missing labels).
+- Consent withdrawal confirmation now names the APAAR ID and purposes.
+
+Explained, no change needed:
+- The login page "Demo accounts" box shows because `frontend/.env.local` sets `NEXT_PUBLIC_DEMO=1`.
+- Kaveri shows 131/126 on the dashboard and 132 on the upload: seed row 60 is dated 2027 and falls outside the 2026 count.
+- Dev only: the Next "Insight" badge overlaps the sidebar footer, and the "instant navigation" console error on every route is Next dev noise.
 
 ## Known limits
 
 - Rate limits are in memory, per process. The login limit is per email. A known email can be locked out for 5 minutes.
 - One Ed25519 signing key, with no rotation. It is not encrypted at rest. Replacing it invalidates every issued token (ADR-022).
-- Access and refresh tokens are kept in `localStorage`, so any script on the page can read them (ADR-013). The refresh token is not rotated. A copied refresh token works until it expires (7 days).
+- Access and refresh tokens are kept in `localStorage`, so any script on the page can read them (ADR-013). Refresh tokens rotate with reuse detection (ADR-026): a copied token stops working once the real client refreshes. A script that reads the current token can still use it until it is rotated or expires (7 days).
 - No forced password change at first login (ADR-025).
 - Audit verify cannot detect deletion of the last rows, because nothing after them points back. Two concurrent audit appends return HTTP 500, with no retry.
 - R05 runs when a record arrives and when it is corrected (ADR-016). It does not run again when the other side changes. Withdrawing a record does not close the flag. Only an officer closes it.
@@ -174,10 +178,10 @@ Results: no HTTP 4xx or 5xx, no crashes, no horizontal overflow, charts render i
 
 ## Next steps (in order)
 
-1. Browser pass. Partly done (see "Browser pass findings"). Remaining: the QR scan, the valid-token verify page, dialogs and mutating flows, the `flags/[id]`, `uploads/[id]` and `rules/[code]` detail pages, Hindi on institution and verifier screens, and a production build. Fix the findings above.
+1. Finish the browser pass. Still unchecked: a QR scan with a device, a real file upload, the demo clock and submission windows, Hindi on institution and verifier screens, a production build.
 2. Visual check of the dashboard charts in both themes, against the validated palette.
 3. Run `docker compose up` on a machine with Docker. Fix what fails. Until then, the Docker path stays "untested".
-4. Replace the console stubs with real SMTP and SMS adapters behind the existing adapter interface. Not started.
+4. SMTP email adapter done (ADR-027, fake-server tested). A real SMS provider is not started; plug it into SmsAdapter.
 5. Native-speaker review of the Hindi strings for the new screens.
 6. Merge the stack in order, `#2` to `#14`, into `dev` (see `PROGRESS.md`). Then open the `dev` to `main` PR at this milestone.
 7. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.

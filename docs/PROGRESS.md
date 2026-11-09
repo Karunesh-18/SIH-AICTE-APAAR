@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-11-09 (browser pass partly done). Branch: `phase-7-frontend`.
+Last updated: 2026-11-09 (browser pass mostly done). Branch: `phase-7-frontend`.
 
 All eight phases in `docs/PLAN.md` are built. The phases are delivered as a stack of pull requests. Each PR's base is the branch of the PR before it. Merge state is not recorded here.
 

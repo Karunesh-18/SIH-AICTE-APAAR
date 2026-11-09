@@ -8,7 +8,14 @@ from pydantic import Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import _bearer, get_current_user, institution_or_403, refuse, require_roles
+from app.api.deps import (
+    _bearer,
+    fail,
+    get_current_user,
+    institution_or_403,
+    refuse,
+    require_roles,
+)
 from app.api.masking import _mask_name, mask_evidence
 from app.api.schemas import Strict
 from app.api.uploads import upload_out
@@ -18,7 +25,7 @@ from app.models.enums import AICTE_ROLES, INSTITUTION_ROLES, Role
 from app.models.org import Institution, Programme
 from app.models.student import FlagRecord, StudentRecord, ValidationFlag
 from app.models.user import User
-from app.services import apikeys, audit, ingest, records
+from app.services import apikeys, audit, certificates, ingest, records
 from app.services import errors as E
 from app.services.access import can_access_institution
 
@@ -94,6 +101,15 @@ def get_record(record_id: str, user: User = Depends(reader), db: Session = Depen
     out["flags"] = [{"id": f.id, "rule_code": f.rule_code, "state": f.state, "reason": f.reason,
                      "evidence": mask_evidence(f.evidence, user)} for f in flags]
     return out
+
+
+@router.post("/records/{record_id}/certificate")
+def certificate(record_id: str, user: User = Depends(reader), db: Session = Depends(get_db)):
+    try:
+        with uow(db):
+            return certificates.issue(db, user, record_id)
+    except (E.Forbidden, E.NotFound, E.Conflict) as e:
+        raise fail(db, user, e, "student_record", record_id) from None
 
 
 # ---- JSON batch push: signed-in user or API key ------------------------------------------------

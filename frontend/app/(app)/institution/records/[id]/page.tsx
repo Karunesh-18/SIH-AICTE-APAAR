@@ -35,7 +35,7 @@ function Detail() {
 
   return (
     <>
-      <PageHeader title={t("record.detail")} actions={<Link className="text-sm underline" href="/institution/records">{t("record.back")}</Link>} />
+      <PageHeader title={t("record.detail")} actions={<span className="flex gap-4 text-sm"><Link className="underline" href={`/institution/records/${id}/certificate`}>{t("cert.open")}</Link><Link className="underline" href="/institution/records">{t("record.back")}</Link></span>} />
       {q.isPending && <Skeleton className="h-40 w-full max-w-2xl" />}
       {q.isError && <QueryError error={q.error} onRetry={() => q.refetch()} />}
       {r && (
