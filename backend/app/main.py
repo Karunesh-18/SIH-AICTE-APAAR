@@ -5,10 +5,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError
 
-from app.api import admin, apikeys, auth, flags, institutions, notifications, records, uploads
+from app.api import (
+    admin,
+    apikeys,
+    auth,
+    dashboards,
+    flags,
+    institutions,
+    notifications,
+    records,
+    reports,
+    uploads,
+)
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.services import clock_admin
+from app.services import clock_admin, scheduler
 
 
 @asynccontextmanager
@@ -19,7 +30,11 @@ async def lifespan(_: FastAPI):
             clock_admin.load(db)
     except OperationalError:  # tables do not exist yet on a first run, before migrations
         logging.getLogger(__name__).warning("clock offset not loaded: database not migrated")
+    sched = (scheduler.start() if scheduler.should_run(
+        demo_mode=settings.demo_mode, scheduler_flag=settings.scheduler) else None)
     yield
+    if sched:
+        sched.shutdown(wait=False)
 
 
 def create_app() -> FastAPI:
@@ -33,7 +48,8 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     for r in (auth.router, institutions.router, notifications.router, admin.router,
-              uploads.router, records.router, apikeys.router, flags.router):
+              uploads.router, records.router, apikeys.router, flags.router,
+              dashboards.router, reports.router):
         app.include_router(r, prefix="/api/v1")
     return app
 

@@ -1,4 +1,6 @@
 """Role x endpoint matrix. Every non-public route must appear here, or the meta-test fails."""
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy import select
 
@@ -77,9 +79,34 @@ MATRIX = {
     # the test puts the flag in ask_institution first; only institution users may answer
     ("POST", "/api/v1/flags/{flag}/reply"): row(inst_admin=200, inst_staff=200),
     ("PATCH", "/api/v1/records/{record}"): row(admin=200, inst_admin=200, inst_staff=200),
+    ("GET", "/api/v1/regions"): row(admin=200, officer_south=200, inst_admin=200, inst_staff=200),
+    ("GET", "/api/v1/dashboards/aicte"): row(admin=200, officer_south=200),
+    ("GET", "/api/v1/dashboards/institution"): row(admin=200, officer_south=200, inst_admin=200,
+                                                   inst_staff=200),
+    ("GET", "/api/v1/dashboards/intake-use"): row(admin=200, officer_south=200, inst_admin=200,
+                                                  inst_staff=200),
+    ("GET", "/api/v1/dashboards/flags-trend"): row(admin=200, officer_south=200, inst_admin=200,
+                                                   inst_staff=200),
+    ("GET", "/api/v1/reports"): row(admin=200, officer_south=200, inst_admin=200, inst_staff=200),
+    ("POST", "/api/v1/reports"): row(admin=201, officer_south=201, inst_admin=201, inst_staff=201),
+    ("GET", "/api/v1/reports/saved"): row(admin=200, officer_south=200, inst_admin=200,
+                                          inst_staff=200),
+    ("GET", "/api/v1/reports/{report}"): row(admin=200, officer_south=200, inst_admin=200,
+                                             inst_staff=200),
+    ("GET", "/api/v1/admin/windows"): row(admin=200),
+    ("POST", "/api/v1/admin/windows"): row(admin=201),
+    ("PUT", "/api/v1/admin/windows/{window}"): row(admin=200),
+    ("POST", "/api/v1/admin/windows/run-cycle"): row(admin=200),
+    ("POST", "/api/v1/admin/anomaly/run"): row(admin=200),
     ("POST", "/api/v1/records/{record}/withdraw"): row(admin=200, inst_admin=200, inst_staff=200),
 }
+WINDOW = {"cycle_year": 2026, "opens_at": "2026-06-01T00:00:00Z",
+          "closes_at": "2026-09-30T00:00:00Z",
+          "ladder": [{"step": "T0", "offset_hours": 0, "audience": "institution"}]}
 BODIES = {
+    ("POST", "/api/v1/reports"): {"name": "m", "report_key": "category_counts", "filters": {}},
+    ("POST", "/api/v1/admin/windows"): WINDOW,
+    ("PUT", "/api/v1/admin/windows/{window}"): WINDOW,
     ("PATCH", "/api/v1/auth/me"): {"language": "en"},
     ("POST", "/api/v1/admin/clock"): {"reset": True},
     ("PUT", "/api/v1/admin/rules/R02"): {"enabled": True, "note": "matrix"},
@@ -92,7 +119,8 @@ BODIES = {
     **{("POST", f"/api/v1/flags/{{flag}}/{a}"): {"note": "matrix"}
        for a in ("review", "resolve", "dismiss", "ask", "link", "reply")},
 }
-QUERY = {("GET", "/api/v1/admin/rules/R02/diff"): {"from": 1, "to": 1}}
+QUERY = {("GET", "/api/v1/admin/rules/R02/diff"): {"from": 1, "to": 1},
+         ("GET", "/api/v1/dashboards/institution"): {"institution_id": "{kaveri}"}}
 
 
 def _cases():
@@ -132,16 +160,24 @@ def test_matrix(client, login, db, world, rules, method, tpl, role, expected):
     if tpl.endswith("/reply"):
         flag.state = "ask_institution"
         db.commit()
+    from app.models.windows import SubmissionWindow
+    window = SubmissionWindow(cycle_year=2026, opens_at=datetime(2026, 6, 1, tzinfo=UTC),
+                              closes_at=datetime(2026, 9, 30, tzinfo=UTC), ladder=[])
+    db.add(window)
+    db.commit()
+    window_id = window.id
     path = tpl.format(flag=flag.id, kaveri=world["kaveri"].id, northfield=world["northfield"].id,
                       notification=_admin_notification(db, world), upload=up, record=record,
-                      key=key)
+                      key=key, report="category_counts", window=window_id)
     headers = {} if role == "anon" else login(EMAIL[role])
     kw = {}
     if (method, tpl) == ("POST", "/api/v1/uploads"):
         kw = {"data": {"cycle_year": "2026", "institution_id": world["kaveri"].id},
               "files": {"file": ("a.csv", csv_bytes([row(2)]), "text/csv")}}
     else:
-        kw = {"json": BODIES.get((method, tpl)), "params": QUERY.get((method, tpl))}
+        params = {k: v.format(kaveri=world["kaveri"].id) if isinstance(v, str) else v
+                  for k, v in (QUERY.get((method, tpl)) or {}).items()} or None
+        kw = {"json": BODIES.get((method, tpl)), "params": params}
     r = client.request(method, path, headers=headers, **kw)
     assert r.status_code == expected, r.text
 
@@ -157,6 +193,6 @@ def test_every_route_is_in_the_matrix():
         "{northfield}", "{institution_id}").replace(
         "{notification}", "{notification_id}").replace("{upload}", "{upload_id}").replace(
         "{record}", "{record_id}").replace("{flag}", "{flag_id}").replace(
-        "/templates/csv", "/templates/{fmt}").replace("/templates/xlsx", "/templates/{fmt}").replace("{key}", "{key_id}").replace(
+        "/templates/csv", "/templates/{fmt}").replace("/templates/xlsx", "/templates/{fmt}").replace("{key}", "{key_id}").replace("{report}", "{key}").replace("{window}", "{window_id}").replace(
         "/rules/R02", "/rules/{code}")) for (m, t) in MATRIX} | PUBLIC
     assert seen - covered == set(), f"routes missing from permission matrix: {seen - covered}"

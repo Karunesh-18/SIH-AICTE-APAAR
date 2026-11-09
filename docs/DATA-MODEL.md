@@ -112,8 +112,9 @@ Flag states: `open`, `under_review`, `resolved`, `dismissed`, `ask_institution`.
 
 | Table | Main columns | Notes |
 |---|---|---|
-| `submission_window` | cycle_year, institution_type, opens_at, closes_at, ladder (JSON) | The ladder holds the reminder steps. |
-| `window_alert_log` | window_id, institution_id, step, sent_or_skipped | `UNIQUE(window, institution, step)`. |
+| `submission_window` | cycle_year, institution_type (null = all), opens_at, closes_at, ladder (JSON) | The ladder holds the reminder steps `{step, offset_hours, audience}`. Built (Phase 5, migration 0004). |
+| `window_alert_log` | window_id, institution_id, step, status (SENT or SKIPPED) | `UNIQUE(window, institution, step)`. Built. |
+| `saved_report` | user_id, name, report_key, filters (JSON) | A report definition, private to its user. Built. |
 | `notification` | recipient, kind, body, read_at | Shown on the bell. |
 | `outbox` | payload, created_at, sent_at | Written in the same transaction as the change. A dispatcher sends after commit. |
 
@@ -130,7 +131,7 @@ Flag states: `open`, `under_review`, `resolved`, `dismissed`, `ask_institution`.
 | Constraint | Where | Why | Source |
 |---|---|---|---|
 | Partial unique index on `(apaar_id, programme_id, cycle_year)` where `is_current` and `apaar_id` is not null | `student_record` | One current record per student, per programme, per cycle. Superseded rows may repeat. Works on SQLite and Postgres. | Plan. Built in Phase 2 (`uq_record_current`). |
-| `UNIQUE(window, institution, step)` | `window_alert_log` | A reminder step fires once. A re-run is harmless. | Plan |
+| `UNIQUE(window, institution, step)` | `window_alert_log` | A reminder step fires once. A re-run is harmless. | Built (Phase 5) |
 | `UNIQUE(prev_hash)` | `audit_log` | Two writers cannot both extend one entry. Stops the chain from forking. Built. A second concurrent writer gets an IntegrityError (HTTP 500) until a retry is added. | Plan |
 | `version_id_col` (optimistic locking) | `student_record`, `validation_flag` | Two people editing one row cannot overwrite each other silently. | Plan. Built in Phase 2 (`lock_version`). |
 | Stores only the hash of an API key | `api_key` | The key cannot be read back. | Plan |

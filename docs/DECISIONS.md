@@ -295,3 +295,28 @@ These are settled in `docs/PLAN.md`. They are listed here so that they are easy 
 - English and Hindi from day one.
 - Sober civic style. Light and dark themes.
 - Deadline: none. Every phase is built. Nothing is cut.
+
+---
+
+## ADR-017: One metrics layer for dashboards and reports
+
+**Status.** Accepted.
+
+**Decision.** `services/metrics.py` is the only place that counts enrolment, flags and pending records. It counts current rows that are not withdrawn (ADR-015). A flag is open unless resolved or dismissed. Institution state: Excess when enrolment is above intake plus supernumerary or an R06 flag is open (so a closed R06 on an over-cap programme still shows Excess); Alert when other flags are open; Clear otherwise. A test checks that dashboard figures equal report figures. Reports are aggregate: no name, date of birth or APAAR ID; duplicate cases show only the ID masked when the flag was raised. Verifiers get no reports (403). Institution roles can only run reports for their own institution (another `institution_id` is 403 and audited). Every report run is audited as `REPORT.EXPORTED` (filters, format, row count).
+
+---
+
+## ADR-018: Window reminder ladder
+
+**Status.** Accepted.
+
+**Decision.** Ladder steps carry an audience (institution, officer, admin) and an offset in hours from `closes_at`. Defaults follow idea doc section 22: institution at 30, 14, 7 days before and on the day; officer 3 days after; admin 10 days after. Per audience only the latest due step is sent; earlier due steps are logged SKIPPED, so a clock jump never sends a burst. `run_cycle(db, now)` reads the demo clock, is idempotent (it reads the log and the unique key backs it), skips institutions that have submitted, and after `closes_at` lists non-submitters and raises R09 once per institution and cycle. APScheduler runs the cycle every `SCHEDULER_MINUTES` (15) only when `DEMO_MODE` is off or `SCHEDULER=1`; the admin button `POST /admin/windows/run-cycle` always works.
+
+---
+
+## ADR-019: Scheduled rules R09 to R12 (thresholds are placeholders)
+
+**Status.** Accepted.
+
+**Decision.** Pure functions in `domain/rules_scheduled.py`; `services/anomaly.py` raises flags (rule version snapshot, FlagEvent, audit, officer notice) and never raises an identical open flag (same institution, rule and cycle) twice. R10 compares with the previous cycle's current non-withdrawn count (no previous data, no flag). R12: one upload of at least `bulk_rows` rows in the last `last_hours` before close whose mix is unusual: one category above 80 percent, or a total-variation distance from the institution's earlier-cycle mix above 0.3. All numbers (`jump_pct` 25, `pending_pct` 20, `last_hours` 6, `bulk_rows` 50, 80 percent, 0.3) are placeholders for AICTE to set through the rule parameters.
+
