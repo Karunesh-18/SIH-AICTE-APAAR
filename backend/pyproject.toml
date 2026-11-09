@@ -8,6 +8,9 @@ dependencies = [
   "openpyxl", "xlrd", "scikit-learn",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "httpx", "xlwt"]  # xlwt only builds the legacy .xls test fixture
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
