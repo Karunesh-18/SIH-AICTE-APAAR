@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 import { fmtInt, fmtPct } from "@/lib/dash";
-import { formatDateTime } from "@/lib/status";
+import { formatDateTime, regionLabel } from "@/lib/status";
 import type { AicteDashboard, DashInstitution, FlagsTrend, RegionRow } from "@/lib/types";
 import { useApiQuery } from "@/lib/use-api";
 
@@ -19,7 +19,7 @@ const TYPES = ["ENGINEERING", "MANAGEMENT", "PHARMACY", "OTHER"];
 const STATES = ["Clear", "Alert", "Excess"];
 
 export function AicteDashboardView() {
-  const { t } = useAuth();
+  const { t, lang } = useAuth();
   const [region, setRegion] = useState("");
   const [type, setType] = useState("");
   const [state, setState] = useState("");
@@ -40,7 +40,7 @@ export function AicteDashboardView() {
     { accessorKey: "name", header: t("col.institution"),
       cell: (c) => <Link className="font-medium underline-offset-2 hover:underline" href={`/aicte/institutions/${c.row.original.id}`}>{c.getValue() as string}</Link> },
     { accessorKey: "state", header: t("col.state"), cell: (c) => <InstitutionStateBadge state={c.getValue() as string} label={t(`state.${c.getValue()}`)} /> },
-    { accessorKey: "region", header: t("col.region") },
+    { accessorKey: "region", header: t("col.region"), cell: (c) => regionLabel(t, c.getValue() as string) },
     { accessorKey: "type", header: t("col.type"), cell: (c) => t(`inst.type.${c.getValue()}`) },
     { accessorKey: "enrolled", header: t("col.enrolment"),
       cell: (c) => <span className="tabular-nums">{fmtInt(c.row.original.enrolled)} / {fmtInt(c.row.original.allowed)}</span> },
@@ -50,7 +50,7 @@ export function AicteDashboardView() {
         const detail = Object.entries(f).map(([r, n]) => `${r}: ${n}`).join(", ");
         return <span title={detail} className="tabular-nums">{c.row.original.open_flags}{detail && <span className="text-muted-foreground"> ({detail})</span>}</span>;
       } },
-    { accessorKey: "last_upload", header: t("col.lastUpload"), cell: (c) => formatDateTime(c.getValue() as string | null) },
+    { accessorKey: "last_upload", header: t("col.lastUpload"), cell: (c) => formatDateTime(c.getValue() as string | null, lang) },
   ];
 
   return (
@@ -74,7 +74,7 @@ export function AicteDashboardView() {
 
           <form role="search" className="mb-4 flex flex-wrap items-end gap-3" onSubmit={(e) => e.preventDefault()}>
             <FilterSelect id="d-region" label={t("filter.region")} value={region} onChange={setRegion} any={t("filter.allRegions")}
-                          options={(regions.data ?? []).map((r) => ({ value: r.code, label: r.name }))} />
+                          options={(regions.data ?? []).map((r) => ({ value: r.code, label: regionLabel(t, r.name) }))} />
             <FilterSelect id="d-type" label={t("filter.type")} value={type} onChange={setType} any={t("filter.any")}
                           options={TYPES.map((v) => ({ value: v, label: t(`inst.type.${v}`) }))} />
             <FilterSelect id="d-state" label={t("filter.state")} value={state} onChange={setState} any={t("filter.any")}

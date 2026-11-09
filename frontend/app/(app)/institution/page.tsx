@@ -19,7 +19,7 @@ function Home() {
     refetchInterval: (query) => pollInterval(query.state.data?.items[0]?.status ?? "DONE"),
   });
   const latest = q.data?.items[0];
-  const upload = <Button render={<Link href="/institution/upload" />}>{t("home.upload")}</Button>;
+  const upload = <Button nativeButton={false} render={<Link href="/institution/upload" />}>{t("home.upload")}</Button>;
 
   return (
     <>

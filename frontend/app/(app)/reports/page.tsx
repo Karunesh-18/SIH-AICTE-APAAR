@@ -91,7 +91,7 @@ function Reports() {
           <fieldset className="flex flex-col gap-3">
             <legend className="t-eyebrow mb-2">{t("reports.sectionReport")}</legend>
             <FilterSelect id="r-key" label={t("reports.pick")} value={activeKey} onChange={(v) => { setKey(v); setResult(null); }}
-                          options={(cat.data ?? []).map((r) => ({ value: r.key, label: r.title }))} noAny />
+                          options={(cat.data ?? []).map((r) => ({ value: r.key, label: r.title }))} noAny wide />
           </fieldset>
           <fieldset className="flex flex-col gap-3">
             <legend className="t-eyebrow mb-2">{t("reports.sectionFilters")}</legend>

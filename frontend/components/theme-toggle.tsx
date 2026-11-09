@@ -2,12 +2,15 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const { t } = useAuth();
-  const dark = resolvedTheme === "dark";
+  // resolvedTheme is only known on the client; render the neutral label until hydrated.
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const dark = mounted && resolvedTheme === "dark";
   return (
     <button
       type="button"
