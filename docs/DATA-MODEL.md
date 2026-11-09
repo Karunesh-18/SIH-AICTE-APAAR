@@ -178,3 +178,11 @@ Ingestion notes: a row whose name, date of birth or admission date cannot be rea
 ## Phase 4 (no schema change)
 
 Phase 4 adds no tables or columns. It uses `validation_flag.lock_version` and `assignee_id`, `flag_event`, and on `student_record` the existing `version`, `continues_record_id`, `superseded_by`, `superseded_at` and `withdrawn_reason`. A correction adds a row with `version + 1` and the same `upload_id` and `row_number`. A withdrawn record keeps `is_current = true` (ADR-015). System closures have a `flag_event` with `actor_id` null.
+
+
+## Phase 6 additions (migration 0005, built)
+
+- `consent`: apaar_id (indexed), purposes (JSON list), fields (JSON list), source, given_at, expires_at, withdrawn_at, recorded_by. Withdrawal sets `withdrawn_at`; rows are never deleted.
+- `purpose_policy`: purpose, allowed_fields (JSON), version, is_active, note, created_by; unique on (purpose, version). A change inserts a new version and deactivates the old one.
+- `verifier`: org_name, org_type (EMPLOYER, INSTITUTION, REGULATOR, OTHER), contact, requested_purposes (JSON), status (PENDING, APPROVED, REJECTED), decided_by, decision_note, user_id (unique, the login).
+- `verification_request`: verifier_id, apaar_id, purpose, fields_requested, consent_id, outcome (GRANTED, REFUSED), refusal_reason (precise), refusal_detail (field names), token_jti (unique), issued_at, expires_at, revoked_at. The token itself is not stored.

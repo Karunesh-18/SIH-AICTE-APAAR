@@ -80,3 +80,10 @@ Outside-reader reports leave out identity fields altogether.
 - **Cross-institution alerts (R05).** The idea doc's example names both colleges in the alert. Should an institution see the other institution's name and programme? Should it see the full APAAR ID? The plan does not say. Decide before Phase 3.
 - **AICTE officer and verification log.** The nav gives officers the verifications page. The plan does not say which requests an officer may see.
 - **Institution admin and staff on consent.** The plan says consent is recorded "through the institution". It does not say whether staff can withdraw consent as well as admins.
+
+
+## Phase 6 decisions on the open questions (built in the backend)
+
+- **Officer and the verification log:** an officer sees verification requests about students of their regions (precise refusal reasons included). Admin sees all.
+- **Consent withdrawal:** institution admin and staff may both record and withdraw consent for students at their institution; AICTE admin for any student. Officers cannot record or withdraw.
+- **Verifier:** sees only their own requests, with the generic refusal for anything that depends on a student or consent (ADR-021). Approval is per purpose.
