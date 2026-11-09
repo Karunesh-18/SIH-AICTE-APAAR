@@ -1,0 +1,405 @@
+Waymark APAAR Hub: verified, APAAR-keyed student records for AICTE-approved institutions
+Smart India Hackathon 2026. Problem statement SIH 26263.
+Team Phoenix Crew, Team ID 199751. Theme: Smart Automation. Category: Software.
+
+1. The problem
+
+AICTE gets student information from its approved institutions through two quite different routes. PGDM institutions send detailed student data every year. All the other approved institutions mostly report statistics: a total enrolment number, given during the approval process. So for most of the system AICTE holds counts, not students.
+
+Counts leave several things unanswerable. Who exactly is enrolled in a programme? Has an institution admitted more students than its approved intake? Is one student enrolled at two institutions at once? If a former student applies for a job and the employer wants to confirm the degree, who does the employer ask, and how does that person know the answer is genuine? Today the honest reply to each of these is a phone call or an email to the institution.
+
+There is also a data quality side. When records arrive in different formats from different sources, names are spelled in different ways, fields are left empty, and the same person can appear twice with small differences. Without a common key, there is no cheap way to match records or to notice a mistake.
+
+APAAR ID is the key we are missing. It is a 12-digit permanent academic ID, part of the One Nation One Student ID effort, and it is linked to the Academic Bank of Credits and DigiLocker. A student keeps the same APAAR ID across institutions. If every student record that reaches AICTE carries it, then the same person can be recognised wherever they show up, and a record can be checked against something outside the institution.
+
+The problem statement asks for a platform that makes this happen: institution upload, APAAR validation, verification, a central AICTE repository, analytics and monitoring, and authorised verification by other parties. It asks for automatic checks that go beyond collecting data, for dashboards, for a secure verification mechanism, for integration with existing systems, for security and consent, for reports, and for APAAR ID to be printed with the student ID on certificates. We went through the list one item at a time and make sure each is covered below.
+
+2. The idea in short
+
+Every student record in the platform hangs off one APAAR ID. Institutions upload their students after admissions close, either as a file or through an API. Each upload is checked as it arrives, and each check that fails produces a flag that names the rule and shows the numbers. Clean records go into a central AICTE repository. AICTE and the institutions watch the same live dashboards. An outside party, such as an employer or another regulator, can verify a record, but only after the student's consent has been checked, and the answer comes back as a signed result limited to the fields that were asked for. Every change and every view is written to an audit log whose entries are chained with SHA-256.
+
+Three rules shape the design.
+
+The platform advises. It flags and routes, and it never rejects an institution's data, corrects a record or penalises anyone on its own. A person takes each decision, and the decision is recorded.
+
+Each flag says why it was raised. If a record was flagged for excess intake, the officer sees the approved intake, the supernumerary seats, the allowed total and the actual enrolment, and does not have to take a score on trust.
+
+We say plainly which parts are built and which are proposed. The platform base exists in our Waymark prototype. The APAAR-specific parts are a design.
+
+3. Where Waymark comes in
+
+Waymark is the prototype we have been building for AICTE-style compliance work. It was designed around a simple object, the obligation, which is anything with an owner, a due date and an alert ladder. Around it we built login with roles, an institution registry, an audit trail that cannot be quietly edited, an alert engine with a simulated clock for demos, and dashboards.
+
+The student-data problem can reuse most of that backbone. Officers, institution staff and verifiers have to see different things, so role-based access carries over directly. Changes to student records have to be traceable, which is what the audit chain is for, and the dashboards, the institution registry and the alert engine carry over as they are. Even the deadline carries over: institutions get a window after admissions close in which to submit, and that window is an obligation the existing engine can track. The one thing Waymark lacks is any idea of a student record, and that is the new module.
+
+Built: JWT login and role guards, the audit log chained with SHA-256 and its verify check, the institution registry, the obligation and alert engine, the compliance dashboard and notifications. Proposed: student upload, the APAAR check, the intake and cross-institution checks, the TF-IDF near-duplicate flag, the privacy masking for student fields, and the consent-based verification with signed records. We do not describe the second group as finished anywhere in our material.
+
+4. What we collect for each student
+
+The statement lists the fields it wants, and we keep to that list and add only what the checks need.
+
+APAAR ID is the unique key. Each record also carries the programme and year of study, the admission date and the admission category as the institution uses it. At programme level the platform holds the approved intake and the number of supernumerary seats. At student level it holds the NRI category, the OCI status and the foreign national status. Finally, each record stores a consent flag and where the consent came from.
+
+We deliberately keep the field list short. Student data is sensitive, and every extra field is something that can leak or be misused. If AICTE later decides it needs more, the fields can be added as configuration. The data model has an institution that owns programmes, a programme that has a sanctioned intake and supernumerary seats, and students enrolled in a programme with the fields above. Flags and verification requests are separate tables that point to a record.
+
+5. How institutions submit data
+
+There are two ways in, and they end up in the same place.
+
+The first is a file. We provide a CSV template with fixed column names and a short guide. An institution fills it in from its own system, uploads it, and gets a result page. That path needs no integration work at all, which matters because institutions run very different software, and some run none.
+
+The second is an API. An institution's ERP or admissions system can send student records as JSON to a documented endpoint, with the institution's credentials. The same checks run, and the response lists the accepted rows and the flagged ones. We kept the two paths identical so that the checking logic exists once.
+
+Submissions are versioned. When an institution uploads again, say to correct a spelling or add late admissions, the platform keeps the earlier version of each record and the time it was replaced. That gives AICTE the history of a record, and it lets an institution fix a mistake without anyone losing the original. A record that an institution withdraws, for example when a student leaves the programme, is marked withdrawn and stays in the history. Nothing is deleted from the audit trail.
+
+A submission window is set for each admission cycle. It is an obligation like any other in Waymark: it has an owner, a due date and a ladder of reminders to the institution before it closes and to the regional officer after. Institutions that have not submitted by the date appear on a list that an AICTE officer can act on. The system does not penalise them. It makes the gap visible.
+
+6. The checks, one by one
+
+Every check is a plain rule that can be read, tested and changed. Each produces a flag that stores the rule's name, the reason in words, the numbers it used, and the record or records involved.
+
+ID format and presence. A record with no APAAR ID, or with an ID that is not 12 digits, is returned to the institution to fix. We check only what we know about the ID, which is its length and that it is numeric. We have no information about a check digit, so we do not claim one.
+
+Registry lookup. When the registry adapter is connected, each ID is looked up and the details are compared with what the institution sent, for example the name and date of birth. If the ID is not found or the details differ, the record is held for review. Without authorisation, the adapter runs against a mock registry with made-up IDs. We do not assume that AICTE can reach the real registry, and the platform is built so that nothing else needs to change if it can.
+
+Duplicate within a file. The same APAAR ID appearing twice in one upload is flagged, and the institution is asked which row is right.
+
+Duplicate across institutions. If the same APAAR ID is active at two institutions in the same cycle, both institutions are alerted and a flag is created for an officer. Sometimes this is legitimate, such as a student who has transferred, and sometimes it is a data error or a genuine double enrolment. The platform cannot tell which, so it asks. The alert shows the two institutions, the programmes and the admission dates.
+
+Intake cap. For each programme the platform computes the allowed enrolment as approved intake plus supernumerary seats and compares it with the actual enrolment. If enrolment is above the allowed number, the flag shows the difference. For example, an approved intake of 120 with 6 supernumerary seats gives 126, and an enrolment of 132 is 6 above. Those 6 records go to an officer, who decides whether they are valid, for instance because of a seat category that the platform does not know about. Supernumerary seats count in the institution's favour before anything is called excess, which is why the check is fair to institutions that use them correctly.
+
+Consistency. Fields that contradict each other are flagged, as are mandatory fields that are missing. An admission date in the future is one example. A programme year that does not exist for the programme is another. The list of consistency rules is kept in the database so that AICTE can extend it without a code change.
+
+Near duplicates. Two records with a similar name and the same date of birth but different or missing APAAR IDs may be the same person. We compare names with TF-IDF over character n-grams and cosine similarity, which tolerates spelling variants and different word orders, and which runs on an ordinary machine without a GPU. The result is a suggestion with the matching score shown. It is never used to merge or reject anything. An officer links the records or dismisses the suggestion.
+
+A student without an APAAR ID. Not every student has one yet, and a missing ID is a gap in the registry as much as a failure of the institution. Such records are held with the status pending APAAR, counted separately on the dashboards, and not rejected. When the ID is later added, the checks run again.
+
+7. Review
+
+Flags are collected into a review queue. An institution user sees flags on its own records and can correct them, upload a fix or add a note. An AICTE officer sees flags across institutions, filtered by region, rule and age. Each flag has a state: open, under review, resolved or dismissed, and each change of state records who did it, when, and the note they wrote.
+
+We kept this part simple on purpose. The checks produce a short list of things that need a human, and the human decides. Overriding a flag needs a written reason, and the override goes into the audit log. If AICTE wants a flag to be a hard stop for some rule, for example for a missing APAAR ID, that is a setting, and it is AICTE's choice to make.
+
+8. The central repository and a student record's life
+
+Records that pass the checks, or that an officer has cleared, are stored in the central repository. A record moves through a small set of states. It starts as submitted. If it passes it becomes valid. If a rule flags it, it becomes flagged and stays visible until the flag is resolved. A record with no APAAR ID yet is pending APAAR. A record that an institution withdraws is withdrawn. Every move is an audit entry.
+
+The repository is a PostgreSQL database, with SQLite for the prototype. The schema is kept compatible with both. Updates are made inside a transaction that writes the record, its history entry and the audit entry together, so the three cannot disagree. Core tables are meant to use optimistic locking, so that two people editing the same record at once cannot silently overwrite each other. That is part of the design and is not built for student records yet.
+
+9. Dashboards and monitoring
+
+There are two views, built on the same numbers.
+
+AICTE sees every approved institution. The top row shows institutions reporting, records submitted, valid, flagged, excess intake and duplicate enrolment. Below that, a table of institutions shows approved intake against actual enrolment, the number of open flags and a status, and can be filtered by region, programme type and submission state. An officer can open an institution to see its programmes and the records behind each flag. A map or chart of intake use by programme shows where enrolment is running close to or above the allowed number during a cycle, so AICTE sees it while admissions are still open.
+
+An institution sees only itself: what it has submitted, what was accepted, what was flagged and why, and what is still to do before the submission window closes. This is the view that makes the system useful to the institution as well as the regulator, because it replaces a vague rejection with a list of exact rows and reasons.
+
+Beyond the threshold rules, we add a few simple anomaly rules, all of them rule-based and visible: an institution whose enrolment jumps sharply compared with the previous year, a submission that arrives in one bulk on the last day with an unusual share of one category, a programme whose enrolment is exactly at the cap in several consecutive years, and a large share of records without an APAAR ID. The thresholds are settings that AICTE sets. We call these anomaly flags, and each one shows the figures it used, so an officer can judge it. We do not call them AI and they do not make decisions.
+
+10. Verification and verifiable records
+
+The statement asks for a secure verification mechanism for authorised stakeholders, and for generation of verifiable student records. We treat these as one feature, built on consent.
+
+A verifier, such as an employer, another institution or a regulatory body, registers and is approved by AICTE for a role. To check a student, the verifier sends the student's APAAR ID and a stated purpose, for example employment verification. The platform checks that the student's consent covers this kind of request. Consent can be given when the student's data is first submitted, or later through the institution, and it has a scope and an expiry. If consent is missing, the request is held and the student or institution is asked.
+
+When consent is in place, the platform returns a result limited to the fields the verifier asked for and is allowed to see. For a typical employment check that may be the institution, the programme and the years of study, and whether the record is valid. The result is a signed token with an expiry time, which can also be shown as a QR code, so that a printed or forwarded copy can be checked again against the platform. The verifier's request, the consent that was used and the response are all written to the audit log.
+
+This gives a verifiable student record linked to the academic identity, which is what the statement asks for. It also reduces the need to phone an institution to confirm a degree.
+
+Certificates. The last item on the statement's list is printing or displaying the APAAR ID along with the student ID on certificates issued by degree-awarding bodies. We support this in two ways. The platform exposes the APAAR ID and student ID pairing through the verification API, so a certificate printing system can pull both. And a certificate that carries a QR code can link straight to the verification page. Changing certificate templates is up to the degree-awarding bodies and is outside our platform, so we provide the data and the check.
+
+11. Integration
+
+Institutions and AICTE already have systems. The statement asks for integration or API capability with them.
+
+Inbound, the REST API and the CSV upload described earlier let an institution's system send data. Outbound, the platform exposes read endpoints for AICTE's own systems, with authentication and scopes, so that the AICTE portal can show institution-level summaries or pull reports. Each outside system is reached through a small adapter, an interface with one implementation per system. The APAAR registry, the AICTE portal, an email gateway and an SMS provider are all behind adapters, and in the prototype each has a stub that logs what it would send. When a real connection is approved, the adapter is replaced and the rest of the platform does not change.
+
+We are not claiming any integration with the APAAR registry, the AICTE portal or an institution's ERP is done. We have defined the interfaces and the stubs.
+
+12. Security, privacy and consent
+
+Roles. There are three families of users: AICTE (officer and admin), institution staff, and verifiers. Every endpoint checks the user's role on the server, and object-level checks go further. An institution user sees only their own institution's records, an AICTE officer sees the regions assigned to them, and a verifier sees only what a consent-checked request returns.
+
+Passwords are hashed with bcrypt. Access tokens are short-lived and refresh tokens longer. Input is validated and unknown fields are rejected. Traffic is over HTTPS, and sensitive fields are meant to be encrypted at rest in production. That last part is a planned step and is not in the prototype.
+
+Masking. Student identity fields are masked in the API serializer as well as on the screen. A role that is not entitled to a field gets a redacted value from the server, so hiding a column in the interface is not what protects it.
+
+Consent. The Digital Personal Data Protection Act, 2023 makes consent of the data principal the main ground for processing personal data, and requires it to be free, specific and informed. We record consent with a scope, a purpose, a source and an expiry, and the platform refuses a verification request that falls outside it. We are not lawyers, and the exact legal basis for AICTE collecting student data, and the DPDP rules, are matters we would take from AICTE's legal team. Where a legitimate use does not need consent, the platform is designed to make that a visible, recorded setting and not a silent assumption.
+
+Audit. The audit log is append-only and hash-chained. Each entry stores the actor, the action, the thing that changed, before and after values, the time, and the hash of the previous entry combined with its own content, using SHA-256. A verify function walks the chain and reports the first entry that does not match, so a quietly edited or deleted row shows up. A database constraint rejects two entries that claim the same predecessor, which stops the chain from forking when two requests write at once. We should be clear about what this is. It is tamper evidence, not tamper proof, and we make no claim about blockchain.
+
+Data minimisation. We hold the fields the checks need and the statement lists, and nothing else. Retention periods would be set by AICTE.
+
+13. Reports
+
+AICTE needs reports for policy, accreditation, monitoring and regulation. The platform produces them from the same repository, so the figures match the dashboards. Examples: enrolment against approved intake by institution, programme type and region; the number and type of flags by rule and by month; institutions that submitted late or not at all; the share of records pending APAAR; duplicate enrolment cases and how they were resolved; category-wise and NRI, OCI and foreign national counts by programme. Reports export as CSV, and a report definition can be saved and rerun each cycle. Reports for outside readers leave out personal identity fields. Every export is logged.
+
+14. What counts as AI here, and what does not
+
+The validation checks, the intake cap, the consistency rules and the anomaly rules are plain rules. Their thresholds are settings and their output is a flag with its reasons. The near-duplicate name flag uses TF-IDF with cosine similarity, which is a classical technique, and it produces a score and a suggestion. We do not use a neural network or a large language model to decide anything. An optional sentence-embedding model could replace the TF-IDF step behind a flag, which would help with names written in different scripts, but the default does not need it and runs offline.
+
+Nothing in the platform acts without a person. It recommends, flags and routes. That is a design choice as much as a safety one, because a regulator has to be able to explain every action it takes.
+
+15. Architecture and technology
+
+Waymark is a modular monolith with a clear separation of layers. Services hold the use cases, domain rules are small pure functions that are easy to test, and adapters sit behind narrow interfaces. Dependencies are injected, so a stub can stand in for any outside system.
+
+The frontend is Next.js with TypeScript and Tailwind CSS, using TanStack Query for data and Recharts for charts. The backend is FastAPI on Python with Pydantic v2 and SQLAlchemy 2, with Alembic for migrations. The database is SQLite for local use and PostgreSQL in production. Authentication uses JWT with bcrypt. Background jobs run on APScheduler in process, and for a larger deployment a job queue and object storage would be added. We plan to package it with Docker Compose, though we have not verified that end to end.
+
+Everything here is open source, so there is no licence cost, and the whole thing runs on one ordinary machine for a demo. For national scale the same design moves to PostgreSQL, a queue for bulk uploads and checks, and object storage for uploaded files, with the stateless API replicated behind a load balancer.
+
+16. A worked example, from upload to review
+
+Take a made-up college, Kaveri Valley College, with one programme whose approved intake is 120 and which has 6 supernumerary seats. When admissions close, its admissions officer exports a CSV with 132 rows and uploads it.
+
+The upload gets an ID and a receipt straight away, and the checks run on it. A short while later the result page says 132 rows were received and 3 flags were raised, covering 8 of the rows. Each flag is explained in a sentence.
+
+The first flag is the intake cap. Allowed enrolment is 120 plus 6, which is 126, and the file has 132 students, so 6 records are above the cap. The flag lists the six rows that came last by admission date and says that this is only an ordering, not a finding that those six are the wrong ones. The officer reviewing it may know that two of them were admitted under a category the platform does not model. That is why it is a flag and not a rejection.
+
+The second flag is a duplicate inside the file. Rows 41 and 97 carry the same APAAR ID (an invented one, 9999 0000 0041), the same name and different admission dates. The flag asks the institution which row is right. The institution sends a corrected file, version 2 of that record replaces version 1, and version 1 stays in the history.
+
+The third flag is a contradiction. One row has an admission date in the following year. The institution fixes the typo and uploads again.
+
+Meanwhile Northfield Institute, also made up, has uploaded 58 students against an intake of 60. Its numbers are fine, but one of its students has the same APAAR ID as a student Kaveri Valley listed. Both institutions see an alert, "same ID active at two institutions", with the programmes and dates side by side, and an AICTE officer gets a flag to look at. A phone call settles it: the student transferred in the middle of the year. Kaveri Valley marks that record withdrawn, the officer resolves the flag with a note, and neither college was blocked at any point.
+
+At the end of the day the AICTE dashboard shows Kaveri Valley as Excess with 3 flags, Northfield as Alert, and Malabar Pharmacy College, 40 students against an intake of 40 with nothing flagged, as Clear. These are the three rows in the sample table in our deck.
+
+17. Data model
+
+We would keep the schema small. The tables below are the proposed ones, and every column listed is something a rule or a screen needs.
+
+institution: id, name, AICTE permanent ID, region, status.
+
+programme: id, institution, name, level, cycle year, approved intake, supernumerary seats. Approved intake and seats are set by AICTE during approval and are read-only for institutions.
+
+upload: id, institution, cycle year, source (file or API), received time, row count, uploaded by, file hash. The file hash makes it easy to see that the same file was sent twice.
+
+student_record: id, APAAR ID, programme, admission date, admission category, NRI category, OCI status, foreign national status, status (submitted, valid, flagged, pending APAAR, withdrawn), version, consent reference, upload. The pair of APAAR ID and programme and cycle year is unique for current versions, enforced by the database.
+
+student_record_history: the earlier versions of a record, with who replaced them and when.
+
+validation_flag: id, rule code, record or upload it refers to, the reason in words, the evidence as small structured data (for the intake cap: approved intake, seats, allowed, actual), state (open, under review, resolved, dismissed), who changed it, when, and the note.
+
+rule_config: rule code, enabled, parameters such as thresholds. This is the table that lets AICTE change a rule without a code change.
+
+consent: id, APAAR ID, scope, purpose, source, given time, expiry, withdrawn time.
+
+verifier: id, organisation, type, approved by, approved on, status.
+
+verification_request: id, verifier, APAAR ID, purpose, fields requested, consent used, outcome, token ID, time.
+
+user and role tables for sign-in, and the audit_log, where each row holds its own hash and the previous row's hash.
+
+Only the user, institution and audit tables and the obligation tables exist in Waymark today. The rest are to be built.
+
+18. API outline
+
+All endpoints sit behind login, and each checks the role on the server. The paths below are our proposal.
+
+Institutions: POST /uploads takes a CSV and returns the upload ID. POST /institutions/{id}/students takes a JSON batch with the same fields. GET /uploads/{id} returns the result, with accepted and flagged counts and the flags. GET /institutions/{id}/records lists the institution's own records with their status.
+
+Review: GET /flags can be filtered by state, rule, institution and age. POST /flags/{id}/resolve and POST /flags/{id}/dismiss both require a note. POST /records/{id}/withdraw marks a record withdrawn with a reason.
+
+Dashboards and reports: GET /dashboards/aicte, GET /dashboards/institution, and GET /reports/{name} with a format parameter for CSV.
+
+Consent and verification: POST /consents records consent, and DELETE /consents/{id} withdraws it. POST /verifications creates a request, GET /verifications/{id} returns the outcome and the signed token, and GET /verify/{token} lets anyone holding a token check that it is genuine and unexpired, which is what a QR code on a certificate would open.
+
+Administration: GET and PUT /admin/rules/{code} to read and change a rule. GET /audit/verify walks the chain and returns the first mismatch, if any.
+
+The requests and responses are JSON, validated with Pydantic, and unknown fields are rejected. The API documents itself through the OpenAPI page that FastAPI generates, which is what an institution's developers would read.
+
+19. Who can do what
+
+AICTE admin: sets rules and thresholds, manages users and verifiers, reads everything, and can resolve or dismiss any flag.
+
+AICTE officer: reads records and flags for their assigned regions, works the review queue, and exports reports. Cannot change rules.
+
+Institution admin: uploads, corrects and withdraws records for their own institution, answers flags, and manages their own staff accounts.
+
+Institution staff: uploads and corrects records for their own institution, and answers flags. Cannot manage accounts.
+
+Verifier: after AICTE has approved the organisation, can submit verification requests for a stated purpose and read back only the fields a consent-checked request returns. Has no access to dashboards or to any list of students.
+
+Student: not a user in the first version. Consent is recorded with the institution at submission and can be withdrawn through the institution. A page where a student gives or withdraws consent directly is a later step, and we do not describe it as part of what we have designed in detail.
+
+Beyond these roles, object-level checks apply everywhere. An institution user asking for another institution's record gets a plain refusal from the server, and the refusal is logged.
+
+20. The rule catalogue
+
+Every rule has a code, so that a flag, a report and a log line can refer to it the same way, and each one can be switched off or tuned in the rule table.
+
+R01 ID missing. R02 ID format, which means not 12 digits. R03 ID not found in the registry, or details do not match, active only when the registry adapter is connected. R04 duplicate ID inside one file. R05 same ID active at two institutions in one cycle. R06 enrolment above intake plus supernumerary seats. R07 contradicting or missing mandatory fields. R08 near-duplicate name and date of birth with different or missing IDs. R09 submission late or missing at the end of the window. R10 enrolment jump against the previous cycle, above a set percentage. R11 share of records pending APAAR above a set percentage. R12 a bulk submission that arrives in the last hours of the window with an unusual mix of categories.
+
+R01 to R07 are checks on a single upload and run on arrival. R05 and R08 also compare across institutions, so they run on arrival and again when the data changes. R09 to R12 look at the pattern over time and run on a schedule. The thresholds in R10, R11 and R12 are placeholders that we expect AICTE to set, because we have no data to justify a number and we would not want anyone to read ours as a finding.
+
+21. Dashboards, screen by screen
+
+AICTE home. The tiles on top are institutions reporting, records submitted, valid, flagged, excess intake and duplicate enrolment. Under them is the institution table, with intake, enrolled, open flags and a status of Clear, Alert or Excess. A filter bar narrows it by region, programme level, state and cycle. Clicking an institution opens its page.
+
+Institution page for AICTE. Programmes with approved intake, seats, allowed enrolment and actual enrolment as a bar, so a programme near its cap is easy to see. Below it, the open flags for that institution and a link to the history of its submissions.
+
+Review queue. A list of flags with the rule code, the institution, the age and the state, sorted oldest first. Opening one shows the reason, the evidence and the records involved, with buttons to resolve, dismiss or ask the institution, each needing a note.
+
+Institution home. The institution's own submission status for the current window, how many records were accepted and flagged, and what remains to be done before the window closes. A list of flags with the fix that is expected for each.
+
+Verification log. For AICTE admins, the list of verification requests with who asked, for whom, the purpose and the outcome. For institutions, the requests that concern their own students.
+
+Reports. A list of saved report definitions, each with a run button and a CSV download.
+
+Each screen has an empty state, a loading state and an error state, which is a small thing but is what makes a prototype feel finished. The interface is in English, and the text lives in a language file so that a Hindi version can be added. Waymark already has the file and some strings.
+
+22. Reminders and notifications
+
+Waymark's alert engine already knows how to send a ladder of reminders around a due date, and the submission window is one more due date. Our default ladder for a window is a reminder to the institution 30, 14 and 7 days before it closes and on the closing day, a message to the regional officer 3 days after if nothing has arrived, and a message to the AICTE admin 10 days after. An admin can edit every step, and a step that was skipped, for instance because the clock jumped, is logged as skipped and is not sent late in a burst.
+
+Other events send one message each. A new flag on an institution's records goes to that institution's contact. A same-ID-at-two-institutions alert goes to both. A verification request about one of an institution's students goes to the institution as a notice, with the verifier's name and purpose, so the institution is never surprised by one. Messages go by email through SMTP, and SMS is a stub that writes to the database, as it is in Waymark. Messages are written through a transactional outbox, which means a message is only sent if the change that caused it was saved.
+
+23. What the messages say
+
+A flag has to be readable by someone who has never seen the rule, so each one is written in plain words with the numbers in it. A few examples of the sort of text we mean.
+
+For R02: "Row 58 has an APAAR ID with 11 digits. An APAAR ID has 12. Please correct it and upload the file again."
+
+For R05: "This APAAR ID is listed at two institutions in this cycle: Kaveri Valley College (MBA, admitted 12 July) and Northfield Institute (MBA, admitted 3 October). If the student transferred, mark one record withdrawn."
+
+For R06: "Allowed enrolment for this programme is 126 (intake 120 plus 6 supernumerary seats). The file lists 132 students, 6 more than allowed. An officer will review the 6 records listed below."
+
+For R08: "These two records have similar names (similarity 0.91) and the same date of birth but different APAAR IDs. They may be the same person. This is a suggestion only."
+
+The wording lives in a table next to the rules, so AICTE can change it and so a Hindi version can sit beside the English one.
+
+24. Edge cases we have thought about
+
+A transfer. A student who moves between institutions will legitimately appear at two of them in one cycle. We do not try to guess. The alert asks the institutions, and marking one record withdrawn with a reason closes it. The open question for AICTE is whether a transfer should have a field of its own.
+
+A student on two programmes at one institution. The uniqueness rule is on APAAR ID plus programme plus cycle, so this is allowed. A flag would only be raised if AICTE decides it should be.
+
+A repeated year or a break. A returning student has an earlier record. We would keep records per cycle, and let a record say that it continues an earlier one. Whether the cross-institution check should look back across cycles is another question for AICTE, and it is off by default.
+
+Name differences. The same name can be written in more than one spelling or script, and an APAAR ID may have been issued from a different spelling than the institution uses. For that reason R03 compares the registry's details with the file's only loosely, and treats a close match as a match and a clear mismatch as a reason to hold the record for review.
+
+A student whose ID arrives mid-cycle. The record starts as pending APAAR, then the institution adds the ID and uploads again. The new version replaces the old, the checks run once more, and the history shows both.
+
+A file that is broken as a whole. If a CSV cannot be read, or required columns are missing, we reject the whole file with a message that names the problem, because accepting half a file that we cannot interpret would hide errors. If the file is readable, we accept the valid rows, flag the rest, and leave the decision about the flagged rows for later. We chose this on purpose so that one bad row never holds up a whole college.
+
+A very large upload. Checks run row by row and can be moved onto a queue, so the person who uploaded sees the receipt at once and the result when it is ready.
+
+An institution that does not use a computer for this. A hand-filled sheet can be typed into the file by someone at the regional office. We do not think software can fix that, and we would rather say so.
+
+25. What exists today
+
+Phases 0 to 2 of Waymark are built and tested: the project scaffold, login with role guards and the audit chain with its verify check, and the obligation engine with alerts, notifications and the compliance dashboard. Our progress notes record the pytest tests for those phases as passing. The institution registry and a simulated clock that lets us demonstrate time-based alerts are in place.
+
+The APAAR module is not built. Our next step is to build it on that foundation, in this order: the student, programme and flag tables with migrations; the CSV upload and the validation rules, with tests for each rule; the review queue and institution view; the AICTE dashboard and reports; then consent and verification with signed results. The mock registry adapter comes early so that the lookup rule can be tested.
+
+26. Feasibility
+
+The technical risk is low because nothing here needs a research result. Format checks, duplicate detection, a cap comparison and a hash chain are standard. TF-IDF is a standard method and is cheap. The platform base already runs. The harder questions are about access and policy, not code. Whether AICTE can query the APAAR registry, under what authorisation, and with what response format, has to come from the issuing authority. Our adapter design means those answers change one component.
+
+Operationally, institutions can start with a CSV file, which asks nothing of their systems, and move to the API when they are ready. For AICTE officers, the review queue is a short list and not a stack of spreadsheets. Economically, an open-source stack and a single deployable application keep the cost low.
+
+27. Risks and how we handle them
+
+Students who do not have an APAAR ID yet. The platform holds them as pending, counts them, and reruns the checks when the ID arrives, so institutions are not blocked or penalised for a gap in the registry.
+
+Two different people flagged as duplicates, or one person missed. Every flag is a suggestion and an officer decides. Near-duplicate matches show their score and can be dismissed. Because cross-institution matches rely on the APAAR ID, which is unique, those are much more reliable than name matches.
+
+Student data is sensitive. We keep few fields, mask them in the API, require consent for verification, log every access and tell the student's institution when a verification request is made. Encryption at rest and retention rules are production steps.
+
+Older institution systems. The CSV template and the API both work, and the adapters isolate any special formats.
+
+Officers who distrust automatic flags. Each flag names its rule and shows its numbers, and the officer can change or turn off a rule. Decisions stay with people.
+
+Rules that change. The intake rules, the consistency rules and the anomaly thresholds are data, not code, so AICTE can edit them.
+
+Load at the peak of an admission cycle. Checks run per upload and can move to a queue. The stateless API scales horizontally.
+
+28. Expected impact
+
+AICTE would hold one authentic record per student, tied to a national identity, instead of an enrolment total. It could see excess and duplicate enrolment while a cycle is still running, when there is time to act, and its policy and accreditation reports would come from student-level data. Institutions upload once and get a list of what to fix and why, plus a record of what they submitted. Students keep one identity across institutions and a say, through consent, in who can check their record. An employer or regulator gets a signed answer in place of a letter to the institution. Because each flag shows its reason and people stay in charge, we expect officers to be willing to use it.
+
+29. The demonstration we plan to show
+
+All of it runs on invented data, and we would show it in this order.
+
+First, a clean upload. Malabar Pharmacy College sends 40 students against an intake of 40. Every record is valid and the dashboard shows Clear.
+
+Second, excess intake. Kaveri Valley College sends 132 against an allowed 126. The intake flag appears with the numbers, the officer opens it, and the screen shows the six rows. The officer dismisses two with a note and leaves four open.
+
+Third, a bad ID. One row has 11 digits and one has none. Both come back to the institution with the rule and the row number, and nothing else in the file is held up.
+
+Fourth, the same student at two institutions. Both colleges get the alert, and an officer resolves it after a made-up phone call.
+
+Fifth, a student with no APAAR ID yet. The record is held as pending APAAR, counted in its own tile, and rechecked when the ID is added.
+
+Sixth, a near duplicate. Two records with similar names and one date of birth, with different IDs. The platform suggests a link and shows the score, and the officer dismisses it.
+
+Seventh, a verification with consent. An employer, a made-up one, asks about a student with a purpose. The consent is found, the answer returns three fields and a signed token, and the QR code opens the check page.
+
+Eighth, a verification without consent, and one after consent has been withdrawn. Both are refused, and both refusals appear in the log.
+
+Ninth, tampering. We change one value directly in the database, run the audit verify call, and it reports the first row where the chain breaks.
+
+Tenth, the clock. Using the simulated clock we move forward past the close of a submission window and show the reminders and the late list. This part exists in Waymark already.
+
+30. How we would test it
+
+The design has a lot of small rules, which suits table-driven unit tests, and we would write them before the rules themselves.
+
+Each rule gets a table of inputs and expected flags, including the boundaries. For the intake cap, enrolment exactly equal to intake plus seats is not excess, one more is, and a programme with no seats set behaves as intake alone. For the ID rules, 11 digits, 12 digits, 13 digits, letters, spaces inside the number and an empty string. For the cross-institution rule, the same ID in the same cycle at two institutions, the same ID in different cycles, and a withdrawn record that should not count.
+
+Permission tests check every role against every endpoint, because the interesting failures are the quiet ones. An institution user must not read another institution's records or flags. A verifier must not see anything that the consent did not cover. A regional officer must not see another region.
+
+The audit chain has its own tests: a clean chain verifies, an edited row is found, a deleted row is found, and two writers claiming the same predecessor are rejected by the database. Waymark already has tests of this kind for its own log.
+
+Upload handling gets the awkward cases: a file with a byte order mark, trailing spaces, names in Devanagari and other scripts in UTF-8, dates written day first, an empty file, a file with extra columns, and the same file uploaded twice, which should create versions and not copies.
+
+Verification tests cover an expired consent, a withdrawn consent, a request for a field outside the scope, a token that has been altered by one character, and an expired token.
+
+We would also run the API against a made-up set of a few thousand records to see how long the checks take, and report that number, not guess it.
+
+31. The build, in order
+
+Phase 1, the data. Migrations for the tables above, a seed script that creates the made-up institutions, programmes and the ten demonstration cases, and tests for the constraints. Done when the seed runs on an empty database and the uniqueness rules reject a bad insert.
+
+Phase 2, upload and checks. The CSV upload, the JSON batch endpoint, rules R01 to R07, and the flag table. Done when each rule's test table passes and the Kaveri Valley file produces exactly the three flags in the worked example.
+
+Phase 3, review. The review queue, the institution view of flags, resolve and dismiss with notes, versioning and withdrawal. Done when a flagged record can be corrected through the screen and the history shows both versions.
+
+Phase 4, dashboards and reports. The AICTE home, institution pages, the report definitions and CSV export, and rules R09 to R12 on a schedule. Done when the dashboard numbers match the report numbers for the seeded data.
+
+Phase 5, consent and verification. Consent records, verifier approval, verification requests, signed tokens, the QR check page, and the fields the answer may contain. Done when the refusal cases in the test plan all refuse.
+
+Phase 6, near duplicates, the registry adapter and polish. The TF-IDF flag, the mock registry behind the adapter, rule R03, the Hindi strings, and the empty, loading and error states. Done when the full demonstration runs from a fresh database in one sitting.
+
+The order puts the checks first because they are what the problem statement cares about most, and puts verification after the data and the review exist, since there is nothing to verify before then. If time runs short, the last things to go would be the Hindi text, R10 to R12 and the near-duplicate flag. Consent and the audit chain would not be dropped.
+
+32. What we would ask AICTE
+
+There are things we cannot answer from outside, and the design leaves each one open as a setting or an adapter.
+
+Can AICTE query the APAAR registry, with what authorisation, and what does a lookup return? This decides whether rule R03 can run on real data.
+
+What is the legal basis for collecting student-level data, and when does it need the student's consent as opposed to a legitimate use? This decides the default consent behaviour.
+
+Which fields are mandatory for which kinds of institution, and what should the platform do with a record that lacks one?
+
+Which seat categories count as supernumerary, are there limits on them, and are there other categories of admission that should be counted differently when comparing with the approved intake?
+
+How should a student who transfers, takes a break or repeats a year be recorded, so that the cross-institution check does not raise alerts that everyone already understands?
+
+What are the submission windows for each kind of institution, and are they the same every year?
+
+How long should records be kept, and who may ask for their removal?
+
+Which organisations may register as verifiers, and who approves them?
+
+Can the degree-awarding bodies change their certificate layouts to carry the APAAR ID, and by when? That part of the statement depends on them and not on us.
+
+33. Next steps
+
+Build the student module and its tests on the Waymark base. Seed it with a made-up dataset that includes the cases the checks are meant to catch: a duplicate ID, an ID of the wrong length, an institution above its allowed intake, a student at two institutions, and a pending-APAAR case. Demonstrate the full path from upload to a verification with consent. Then talk to AICTE and the APAAR registry's owners about the access and consent questions we cannot answer ourselves, and adjust the adapters to what is allowed.
+
+34. Limits
+
+We have no access to the real APAAR registry, AICTE systems or student data. Every institution, student, ID and number in our material is invented, and the APAAR IDs in examples are not real. Field lists, rules, thresholds and consent scopes are sensible defaults for AICTE to change. Connections to the APAAR registry, the AICTE portal, email and SMS are interfaces and stubs. We are not claiming legal compliance. We rely on AICTE's legal team for the basis of collection and for how the data protection rules apply. The student module described here is a design, built on a base that works.
