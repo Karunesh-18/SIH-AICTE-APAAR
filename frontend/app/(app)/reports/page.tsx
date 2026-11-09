@@ -13,12 +13,13 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
+import en from "@/lib/i18n/en.json";
 import { useAuth } from "@/lib/auth";
 import { csvFilename, reportQuery, saveBlob } from "@/lib/dash";
 import type { InstitutionRow, RegionRow, ReportDef, ReportResult, SavedReport } from "@/lib/types";
 import { useApiQuery } from "@/lib/use-api";
 
-const TYPES = ["ENGINEERING", "MANAGEMENT", "PHARMACY", "OTHER"];
+const TYPES = Object.keys(en).filter((k) => k.startsWith("inst.type.")).map((k) => k.slice("inst.type.".length));
 const GROUPS = ["programme", "institution", "programme_type", "region"];
 const cell = (v: unknown) => (v === null || v === undefined ? "" : String(v));
 
@@ -86,33 +87,40 @@ function Reports() {
       {cat.isError && <QueryError error={cat.error} onRetry={() => cat.refetch()} />}
       {cat.isPending && <Skeleton className="h-24 w-full max-w-2xl" />}
       {def && (
-        <form role="search" className="mb-4 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(); }}>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="r-key">{t("reports.pick")}</Label>
-            <select id="r-key" className="h-8 max-w-72 rounded-lg border border-input bg-transparent px-2 text-sm dark:bg-input/30"
-                    value={activeKey} onChange={(e) => { setKey(e.target.value); setResult(null); }}>
-              {cat.data?.map((r) => <option key={r.key} value={r.key}>{r.title}</option>)}
-            </select>
+        <form role="search" className="mb-4 flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); run(); }}>
+          <fieldset className="flex flex-col gap-3">
+            <legend className="t-eyebrow mb-2">{t("reports.sectionReport")}</legend>
+            <FilterSelect id="r-key" label={t("reports.pick")} value={activeKey} onChange={(v) => { setKey(v); setResult(null); }}
+                          options={(cat.data ?? []).map((r) => ({ value: r.key, label: r.title }))} noAny />
+          </fieldset>
+          <fieldset className="flex flex-col gap-3">
+            <legend className="t-eyebrow mb-2">{t("reports.sectionFilters")}</legend>
+            <div className="flex flex-wrap items-end gap-3">
+              {has("region") && !institutionUser && (
+                <FilterSelect id="r-region" label={t("filter.region")} value={f.region ?? ""} onChange={(v) => set("region", v)} any={t("filter.allRegions")}
+                              options={(regions.data ?? []).map((r) => ({ value: r.code, label: r.name }))} />)}
+              {has("type") && !institutionUser && (
+                <FilterSelect id="r-type" label={t("filter.type")} value={f.type ?? ""} onChange={(v) => set("type", v)} any={t("filter.any")}
+                              options={TYPES.map((v) => ({ value: v, label: t(`inst.type.${v}`) }))} />)}
+              {has("institution_id") && !institutionUser && (
+                <FilterSelect id="r-inst" label={t("filter.institution")} value={f.institution_id ?? ""} onChange={(v) => set("institution_id", v)} any={t("filter.allInstitutions")}
+                              options={(insts.data ?? []).map((i) => ({ value: i.id, label: i.name }))} />)}
+              {has("cycle_year") && (
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="r-cycle">{t("filter.cycle")}</Label>
+                  <Input id="r-cycle" type="number" min={2000} className="min-h-11 w-28" value={f.cycle_year ?? ""} onChange={(e) => set("cycle_year", e.target.value)} />
+                </div>)}
+              {has("group_by") && (
+                <FilterSelect id="r-group" label={t("reports.groupBy")} value={f.group_by ?? ""} onChange={(v) => set("group_by", v)} any={t("reports.group.programme")}
+                              options={GROUPS.map((g) => ({ value: g, label: t(`reports.group.${g}`) }))} />)}
+              <Button type="button" variant="ghost" className="min-h-11" disabled={Object.keys(filters).length === 0}
+                      onClick={() => { setF({}); setResult(null); }}>{t("reports.reset")}</Button>
+            </div>
+          </fieldset>
+          <div className="flex flex-wrap gap-3 border-t border-border pt-4">
+            <Button type="submit" size="lg" className="min-h-11" disabled={state === "running"}>{state === "running" ? t("state.running") : t("reports.run")}</Button>
+            <Button type="button" size="lg" variant="outline" className="min-h-11" onClick={exportCsv}>{t("reports.export")}</Button>
           </div>
-          {has("region") && !institutionUser && (
-            <FilterSelect id="r-region" label={t("filter.region")} value={f.region ?? ""} onChange={(v) => set("region", v)} any={t("filter.allRegions")}
-                          options={(regions.data ?? []).map((r) => ({ value: r.code, label: r.name }))} />)}
-          {has("type") && !institutionUser && (
-            <FilterSelect id="r-type" label={t("filter.type")} value={f.type ?? ""} onChange={(v) => set("type", v)} any={t("filter.any")}
-                          options={TYPES.map((v) => ({ value: v, label: t(`inst.type.${v}`) }))} />)}
-          {has("institution_id") && !institutionUser && (
-            <FilterSelect id="r-inst" label={t("filter.institution")} value={f.institution_id ?? ""} onChange={(v) => set("institution_id", v)} any={t("filter.allInstitutions")}
-                          options={(insts.data ?? []).map((i) => ({ value: i.id, label: i.name }))} />)}
-          {has("cycle_year") && (
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="r-cycle">{t("filter.cycle")}</Label>
-              <Input id="r-cycle" type="number" min={2000} className="w-28" value={f.cycle_year ?? ""} onChange={(e) => set("cycle_year", e.target.value)} />
-            </div>)}
-          {has("group_by") && (
-            <FilterSelect id="r-group" label={t("reports.groupBy")} value={f.group_by ?? ""} onChange={(v) => set("group_by", v)} any={t("reports.group.programme")}
-                          options={GROUPS.map((g) => ({ value: g, label: t(`reports.group.${g}`) }))} />)}
-          <Button type="submit" disabled={state === "running"}>{state === "running" ? t("state.running") : t("reports.run")}</Button>
-          <Button type="button" variant="outline" onClick={exportCsv}>{t("reports.export")}</Button>
         </form>
       )}
       {institutionUser && <p className="mb-4 text-xs text-muted-foreground">{t("reports.scopeNote")}</p>}
@@ -134,14 +142,14 @@ function Reports() {
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1">
             <Label htmlFor="r-name">{t("reports.saveName")}</Label>
-            <Input id="r-name" className="w-64" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input id="r-name" className="min-h-11 w-64" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
-          <Button variant="outline" disabled={!name.trim()} onClick={save}>{t("reports.save")}</Button>
+          <Button variant="outline" className="min-h-11" disabled={!name.trim()} onClick={save}>{t("reports.save")}</Button>
         </div>
       )}
 
       <section aria-labelledby="sv-h" className="mt-8">
-        <h2 id="sv-h" className="mb-2 font-semibold">{t("reports.saved")}</h2>
+        <h2 id="sv-h" className="t-section mb-2">{t("reports.saved")}</h2>
         {saved.isError ? <QueryError error={saved.error} onRetry={() => saved.refetch()} /> :
           saved.isPending ? <Skeleton className="h-10 w-full max-w-md" /> :
             saved.data.length === 0 ? <p className="text-sm text-muted-foreground">{t("reports.savedEmpty")}</p> : (
@@ -150,7 +158,7 @@ function Reports() {
                   <li key={s.id} className="flex items-center gap-3 text-sm">
                     <span className="font-medium">{s.name}</span>
                     <span className="text-muted-foreground">{cat.data?.find((r) => r.key === s.report_key)?.title ?? s.report_key}</span>
-                    <Button size="sm" variant="outline" onClick={() => rerun(s)}>{t("reports.rerun")}</Button>
+                    <Button size="sm" variant="outline" className="min-h-11" onClick={() => rerun(s)}>{t("reports.rerun")}</Button>
                   </li>
                 ))}
               </ul>

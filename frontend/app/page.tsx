@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, ClipboardCheck, FileUp, ListChecks, QrCode } from "lucide-react";
+import { BrandLockup } from "@/components/brand";
 import { LangSwitch } from "@/components/lang-switch";
 import { SkipLink } from "@/components/skip-link";
 import { ToneBadge } from "@/components/status-badge";
@@ -39,7 +40,7 @@ export default function Home() {
     <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-16 px-4 py-6 sm:px-6">
       <SkipLink />
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-semibold">{t("app.name")}</p>
+        <BrandLockup />
         <div className="flex flex-wrap items-center gap-2">
           <LangSwitch />
           <ThemeToggle />
@@ -54,7 +55,8 @@ export default function Home() {
       <main id="main" className="flex flex-col gap-20">
         <section className="grid items-center gap-8 md:grid-cols-[1.4fr_1fr]">
           <div className="flex flex-col gap-5">
-            <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{t("landing.title")}</h1>
+            <p className="t-eyebrow">APAAR</p>
+            <h1 className="t-display">{t("landing.title")}</h1>
             <p className="max-w-prose text-lg text-muted-foreground">{t("landing.lead")}</p>
             <div className="flex flex-wrap gap-3">
               {user ? (
@@ -69,14 +71,14 @@ export default function Home() {
         </section>
 
         <section aria-labelledby="flow-h" className="flex flex-col gap-6">
-          <h2 id="flow-h" className="text-xl font-semibold">{t("landing.flowTitle")}</h2>
+          <h2 id="flow-h" className="t-section">{t("landing.flowTitle")}</h2>
           <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map(({ key, Icon }, i) => (
-              <li key={key} className="flex flex-col gap-2 border-t-2 border-primary pt-3">
+              <li key={key} className="flex flex-col gap-2 rule-primary pt-3">
                 <span className="flex items-center gap-2 text-sm text-muted-foreground tabular">
                   <Icon aria-hidden className="size-4 text-primary" /> {i + 1}
                 </span>
-                <h3 className="font-medium">{t(`landing.step.${key}`)}</h3>
+                <h3 className="font-semibold">{t(`landing.step.${key}`)}</h3>
                 <p className="text-sm text-muted-foreground">{t(`landing.step.${key}.body`)}</p>
               </li>
             ))}
@@ -85,7 +87,7 @@ export default function Home() {
 
         <section aria-labelledby="states-h" className="flex flex-col gap-6">
           <div>
-            <h2 id="states-h" className="text-xl font-semibold">{t("landing.statesTitle")}</h2>
+            <h2 id="states-h" className="t-section">{t("landing.statesTitle")}</h2>
             <p className="mt-1 max-w-prose text-sm text-muted-foreground">{t("landing.statesLead")}</p>
           </div>
           <ul className="grid gap-4 sm:grid-cols-3">
@@ -98,32 +100,14 @@ export default function Home() {
           </ul>
         </section>
 
-        <section aria-labelledby="adv-h" className="rounded-md border border-border bg-muted/50 p-6">
-          <h2 id="adv-h" className="text-xl font-semibold">{t("landing.advisoryTitle")}</h2>
+        <section aria-labelledby="adv-h" className="rule-primary rounded-md bg-muted/50 p-6">
+          <h2 id="adv-h" className="t-section">{t("landing.advisoryTitle")}</h2>
           <p className="mt-2 max-w-prose">{t("landing.advisoryBody")}</p>
-        </section>
-
-        <section aria-labelledby="paths-h" className="flex flex-col gap-6">
-          <h2 id="paths-h" className="text-xl font-semibold">{t("landing.pathsTitle")}</h2>
-          <ul className="grid gap-4 md:grid-cols-3">
-            {([
-              ["/login", "signin"],
-              ["/verify", "verify"],
-              ["/verifiers/register", "register"],
-            ] as const).map(([href, k]) => (
-              <li key={k} className="flex flex-col gap-2 rounded-md border border-border p-4">
-                <h3 className="font-medium">{t(`landing.path.${k}`)}</h3>
-                <p className="flex-1 text-sm text-muted-foreground">{t(`landing.path.${k}.body`)}</p>
-                <Link href={href} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium underline underline-offset-4">
-                  {t(`landing.path.${k}.cta`)} <ArrowRight aria-hidden className="size-4" />
-                </Link>
-              </li>
-            ))}
-          </ul>
         </section>
       </main>
 
       <footer className="mt-auto border-t border-border pt-4 text-sm text-muted-foreground">
+        <p className="mb-2"><Link href="/verifiers/register" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("reg.link")}</Link></p>
         <p>{t("app.notice")}</p>
         <p className="mt-1">{t("landing.team")}</p>
       </footer>

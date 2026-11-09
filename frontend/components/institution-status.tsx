@@ -60,7 +60,7 @@ export function InstitutionStatus() {
         <h2 id="c-h" className="mb-2 font-semibold">{t("home.counts")}</h2>
         <dl className="flex flex-wrap gap-x-8 gap-y-2">
           {([["home.accepted", d.records.accepted], ["home.flagged", d.records.flagged], ["home.pending", d.records.pending_apaar]] as const).map(([k, v]) => (
-            <div key={k}><dt className="text-xs text-muted-foreground">{t(k)}</dt><dd className="text-2xl font-semibold tabular-nums">{v}</dd></div>
+            <div key={k}><dt className="text-xs text-muted-foreground">{t(k)}</dt><dd className="t-figure text-primary">{v}</dd></div>
           ))}
         </dl>
       </section>
