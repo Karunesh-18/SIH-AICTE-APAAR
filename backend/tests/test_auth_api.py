@@ -107,6 +107,20 @@ def test_reused_token_outside_grace_is_refused_and_revokes_the_family(client, db
     assert len(rows) == 1 and rows[0].entity_type == "user"
 
 
+def test_replay_at_the_same_instant_is_refused_when_grace_is_zero(client, monkeypatch):
+    from datetime import UTC, datetime
+
+    from app.core.config import settings
+    from app.services import sessions
+
+    instant = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)  # clock frozen: first use and replay share it
+    monkeypatch.setattr(sessions, "_now", lambda: instant)
+    monkeypatch.setattr(settings, "refresh_grace_seconds", 0)
+    t = _login(client)
+    assert _refresh(client, t["refresh_token"]).status_code == 200
+    assert _refresh(client, t["refresh_token"]).status_code == 401  # zero grace means no grace
+
+
 def test_grace_window_accepts_previous_token_once(client, db):
     t = _login(client)
     first = _refresh(client, t["refresh_token"])
