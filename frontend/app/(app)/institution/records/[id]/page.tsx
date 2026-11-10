@@ -9,6 +9,7 @@ import { RoleGuard } from "@/components/role-guard";
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
+import { ClearHint } from "@/components/clear-hint";
 import { evidenceLines } from "@/lib/flags";
 import { formatDateTime } from "@/lib/status";
 import type { RecordDetail } from "@/lib/types";
@@ -57,6 +58,7 @@ function Detail() {
                 <li key={f.id} className="rounded-md border border-border p-4 text-sm">
                   <p className="font-medium"><span className="font-mono">{f.rule_code}</span> - {t(`rule.${f.rule_code}`)}</p>
                   <p className="mt-1">{f.reason}</p>
+                  <div className="mt-1"><ClearHint hint={f.clear_hint} /></div>
                   <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
                     {evidenceLines(f.evidence).map((l) => (
                       <div key={l.key} className="contents">

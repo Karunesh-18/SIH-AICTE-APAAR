@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
-from app.api.masking import mask_evidence
+from app.api.masking import hint_out, mask_evidence
 from app.api.records import mask_record, record_out
 from app.api.schemas import Strict
 from app.core import clock
@@ -43,6 +43,7 @@ def flag_out(f: ValidationFlag, institution_name: str, record_count: int) -> dic
         "assignee_id": f.assignee_id, "upload_id": f.upload_id, "lock_version": f.lock_version,
         "record_count": record_count, "created_at": f.created_at,
         "age_days": max((clock.now() - f.created_at).days, 0),
+        "clear_hint": hint_out(f.rule_code, f.evidence),
     }
 
 

@@ -1,7 +1,9 @@
 export type RecordStatus = "submitted" | "valid" | "flagged" | "pending_apaar" | "withdrawn";
 export type Page<T> = { items: T[]; total: number };
 
+export type ClearHintData = { key: string; values: Record<string, unknown> };
 export type FlagItem = {
+  clear_hint?: ClearHintData | null;
   id: string; rule_code: string; reason_key: string; reason: string;
   evidence: Record<string, unknown>; rows: number[];
 };
@@ -23,7 +25,7 @@ export type RecordRow = {
 };
 export type RecordDetail = RecordRow & {
   versions: { id: string; version: number; is_current: boolean; upload_id: string; status: string; superseded_at: string | null }[];
-  flags: { id: string; rule_code: string; state: string; reason: string; evidence: Record<string, unknown> }[];
+  flags: { id: string; rule_code: string; state: string; reason: string; evidence: Record<string, unknown>; clear_hint?: ClearHintData | null }[];
 };
 
 export type ApiKey = {
@@ -50,6 +52,7 @@ export type FlagRow = {
   id: string; rule_code: string; reason_key: string; reason: string; state: string;
   institution_id: string; institution_name: string; assignee_id: string | null; upload_id: string;
   lock_version: number; record_count: number; created_at: string; age_days: number;
+  clear_hint?: ClearHintData | null;
 };
 export type FlagEvent = {
   id: string; from_state: string | null; to_state: string; note: string | null; at: string;
