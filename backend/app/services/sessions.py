@@ -63,7 +63,7 @@ def rotate(db: Session, raw: str) -> tuple[User, str] | None:
         return None
     now = _now()
     if row.used_at is not None:
-        in_grace = (now - row.used_at <= timedelta(seconds=settings.refresh_grace_seconds)
+        in_grace = (now - row.used_at < timedelta(seconds=settings.refresh_grace_seconds)
                     and not row.grace_used)
         if not in_grace:
             revoke_family(db, row.family_id)
