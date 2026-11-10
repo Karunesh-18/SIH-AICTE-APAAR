@@ -7,7 +7,7 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 ## Current state
 
 - All eight phases of `PLAN.md` are built. Phase status and PR numbers are in `PROGRESS.md`.
-- Backend: 1003 tests pass. Frontend: 106 tests pass. The full backend suite was 1058 passed on the PR #26 branch (2026-11-10). `tsc`, `eslint` and `next build` are clean. These counts are from the 2026-11-09 run. They have not been re-run since PRs #15 to #22.
+- Backend: 1070 tests pass. Frontend: 141 tests pass. Both counts are from 2026-11-10, run on the PR branches for #27 and #28. `tsc`, `eslint` and `next build` were clean on 2026-11-09 and were not re-run for #27 and #28.
 - Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
 - A browser pass was done. Its findings were fixed: theme hydration, nativeButton, Hindi gaps and select labels (commit `7aa625b`, PR #16), and missing evidence labels for R07 to R12 in English and Hindi (PR #17). The regression tests for these are jsdom and source-grep tests, not a browser run. Git does not record which screens the pass covered. Still unverified: charts in both themes, dialogs, layout, the QR scan, and Hindi on the new screens.
 - Refresh tokens rotate, with reuse detection, a grace window and logout revocation (ADR-026, PR #20). Tested.
@@ -15,7 +15,8 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 - Email: console by default; SMTP adapter built (EMAIL_BACKEND=smtp, ADR-027), tested against a fake server only. SMS is a console stub.
 - Not built: encryption at rest, a job queue, object storage, and a registry lookup against real data.
 - Offline QR check on the public verify page (PR #25, ADR-028). The browser checks the signature with a cached public key when the API cannot be reached. Unit tested. Not checked in a browser.
-- Signed audit checkpoints (PR #26, ADR-029, migration 0009). Tested. No UI yet. Checkpoints are created by the scheduler tick or by the API.
+- Signed audit checkpoints (PR #26, ADR-029, migration 0009). Tested. UI on `/admin/audit` (PR #27), not checked in a browser. Checkpoints are created by the scheduler tick, by the API, or by the button on `/admin/audit`.
+- Impact preview for the R08, R10 and R11 thresholds (PR #28, ADR-030). Tested. Nothing is saved. A Preview impact button and panel are on `/admin/rules/[code]`. Not checked in a browser.
 - Docker Compose is written but untested (Docker is not installed).
 
 ## How to run from scratch
@@ -94,7 +95,8 @@ Run the backend and frontend as above, with `app.seed --demo` done. The steps be
 | 9 | Tampering | `/admin/audit` (tamper button, then verify) | `admin@` | The tamper button edits one row (demo mode only). Verify reports the first broken row. |
 | 10 | Clock past the window close | `/admin/clock`, `/admin/windows` (reminders and late list), `/reports` | `admin@` | Advancing the clock past close produces reminders, the late list and R09 flags. |
 | 11 | Offline QR check: stop the backend, reload the verify page after one online visit | `/verify/[token]` (the frontend stays up; only the API is stopped) | None (public page) | The offline notice says the signature is valid and that revocation could not be checked. Without one online visit first, the notice says there is no saved key. |
-| 12 | Truncation caught by checkpoint (via API until the UI lands: create a checkpoint, truncate 3, verify) | API docs at `/docs`: `POST /api/v1/admin/audit/checkpoint`, then `POST /api/v1/admin/dev/truncate-audit?n=3`, then `POST /api/v1/admin/audit/verify` | `admin@` (demo mode only) | The `checkpoint` field in the verify answer shows `missing_rows`. Truncate 3 removes the checkpoint's own audit row and the signed head. A plain chain check does not show a missing head. |
+| 12 | Truncation caught by checkpoint | `/admin/audit`: Create checkpoint, then Delete last 3 rows (demo mode only), then Verify. The API route still works: `POST /api/v1/admin/audit/checkpoint`, then `POST /api/v1/admin/dev/truncate-audit?n=3`, then `POST /api/v1/admin/audit/verify` | `admin@` (demo mode only) | The checkpoint outcome under Verify fails (reason `missing_rows`). Truncate 3 removes the checkpoint's own audit row and the signed head. A plain chain check does not show a missing head. |
+| 13 | Impact preview (not in the idea doc): change a threshold, Preview impact, then cancel. | `/admin/rules/R08` (or `/admin/rules/R10`, `/admin/rules/R11`) | `admin@` | The panel shows flags now and flags under the proposed value. Nothing is saved, so the rule's version does not change. |
 
 The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases.py`. It goes through the HTTP API, not the browser.
 
@@ -105,7 +107,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 - Docker Compose has not been run. Docker is not installed.
 - Hindi strings for the new screens have no native-speaker review.
 - The offline QR check (PR #25) is covered by unit tests only. It has not been run in a browser with the API stopped.
-- Audit checkpoints have no UI. Only the API is tested.
+- The checkpoint UI on `/admin/audit` (PR #27) and the impact preview (PR #28) are not checked in a browser.
 - The scheduler thread has not run in tests. Tests cover only the on and off switch.
 - SMS is a console stub. Email has an SMTP adapter (ADR-027), tested against a fake server only.
 - Playwright was not used.
@@ -134,7 +136,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 | 1 | R01 wording. The idea doc says a missing ID is "returned to the institution" and also "held as pending APAAR". | Decided: a missing ID gets an R01 flag and status `pending_apaar`. Nothing is rejected. The "returned" wording is not followed. |
 | 2 | Hard stop. What `rule_version.hard_stop` does. | Decided: display only. The field is stored per rule version, editable by the AICTE admin, and shown on the flag detail. No rule uses it to refuse, hold or change data. |
 | 3 | The Kaveri count (3 flags covering 8 rows). | Resolved. Seed row 60 is both over the cap and dated in 2027. |
-| 4 | Threshold values for R08, R10, R11 and R12. | Open. Placeholders. AICTE to set. |
+| 4 | Threshold values for R08, R10, R11 and R12. | Open. Placeholders. AICTE to set. The impact preview (ADR-030) can now test R08, R10 and R11 thresholds: it shows how many flags a proposed value would add or clear. R12 has no preview. |
 | 5 | Audit genesis value. | Resolved in code: the first `prev_hash` is 64 zeros. Confirm for the record. |
 | 6 | Verifier status values. | Decided in code: `PENDING`, `APPROVED`, `REJECTED`. |
 | 7 | Does the institution learn about a refused request? | Decided in code: the institution is notified on a grant only (ADR-021). |
@@ -175,7 +177,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 4. SMTP email adapter done (ADR-027, fake-server tested). A real SMS provider is not started; plug it into SmsAdapter.
 5. Native-speaker review of the Hindi strings for the new screens.
 6. The stack `#2` to `#14` is in `dev` (see `PROGRESS.md`). Open the `dev` to `main` PR at this milestone.
-7. Checkpoint UI (ADR-029), and a browser check of the offline QR notice with the API stopped (ADR-028).
+7. Browser check of the checkpoint UI on `/admin/audit` (PR #27), the impact preview on the rule page (PR #28, ADR-030), and the offline QR notice with the API stopped (ADR-028).
 8. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.
 
 ## Files not to edit

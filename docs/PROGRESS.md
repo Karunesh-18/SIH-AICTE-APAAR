@@ -53,6 +53,8 @@ Test counts in the Checks section are from 2026-11-09. They were not re-run for 
 - PR #24: refresh of the handoff, progress and design docs.
 - PR #25: offline check of signed QR tokens on the public verify page (ADR-028). Unit tested. Not checked in a browser.
 - PR #26: signed audit checkpoints that catch truncation of the last rows (ADR-029, migration 0009). Tested. No UI yet. The full backend suite was 1058 passed on the branch.
+- PR #27: checkpoint UI on `/admin/audit`. Create checkpoint, the checkpoint outcome under verify, a demo-only Delete last 3 rows button with a confirm dialog, and a list of recent checkpoints with copy-token. Not checked in a browser.
+- PR #28: impact preview for R08, R10 and R11 rule parameters (ADR-030). `POST /api/v1/admin/rules/{code}/preview` and a Preview impact button on the rule edit page. Nothing is saved. Full backend suite 1070 passed and frontend 141 passed on the branch. Not checked in a browser.
 
 ## Stacked PRs
 

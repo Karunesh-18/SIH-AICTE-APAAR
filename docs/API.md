@@ -169,6 +169,7 @@ Institution users answer flags on their own records. The plan does not say which
 | PUT | `/api/v1/admin/rules/{code}` | AICTE admin | Change a rule. Creates a new version. | Yes |
 | GET | `/api/v1/admin/rules/{code}/diff` | AICTE admin | Compare two versions | No |
 | POST | `/api/v1/admin/rules/{code}/revert` | AICTE admin | Copy an old version into a new version | Yes |
+| POST | `/api/v1/admin/rules/{code}/preview` | AICTE admin | Impact preview for R08, R10 and R11. Body `{params}`. Runs the rule with the active and the proposed parameters over the current cycle. Returns the counts now and proposed, flags added and cleared, up to five examples of each, and counts by institution. Nothing is saved. 422 for any other code. ADR-030. | No |
 | GET, PUT | `/api/v1/admin/policies` and `/api/v1/admin/policies/{purpose}` | AICTE admin | Purpose policies and their field allow-lists | Yes (writes) |
 | GET, POST | `/api/v1/admin/users` | AICTE admin | List (filters `role`, `institution`, `active`, `q`) and create. **BUILT** (Phase 7). | Yes (writes) |
 | PATCH | `/api/v1/admin/users/{id}` | AICTE admin | Role, active flag, name, institution, regions. **BUILT**. | Yes |

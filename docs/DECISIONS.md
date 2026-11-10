@@ -29,6 +29,22 @@ Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling round
 | ADR-012 | A duplicate ID in one file keeps the first row current | Accepted |
 | ADR-013 | Tokens in localStorage for the prototype | Accepted (prototype only) |
 | ADR-014 | Every seeded APAAR ID starts with 9999 | Accepted |
+| ADR-015 | A withdrawn record stays current but counts nowhere | Accepted |
+| ADR-016 | Review actions and record corrections | Accepted |
+| ADR-017 | One metrics layer for dashboards and reports | Accepted |
+| ADR-018 | Window reminder ladder | Accepted |
+| ADR-019 | Scheduled rules R09 to R12 (thresholds are placeholders) | Accepted |
+| ADR-020 | Verification token format | Accepted |
+| ADR-021 | Refusal semantics and enumeration | Accepted |
+| ADR-022 | Signing key handling | Accepted |
+| ADR-023 | R08 near duplicate and shared similarity | Accepted |
+| ADR-024 | The outbox is dispatched after commit | Accepted |
+| ADR-025 | User and staff management | Accepted |
+| ADR-026 | Refresh-token rotation with reuse detection | Accepted |
+| ADR-027 | SMTP email adapter behind the existing interface | Accepted |
+| ADR-028 | Offline signature check on the public verify page | Accepted |
+| ADR-029 | Signed audit checkpoints | Accepted |
+| ADR-030 | Impact preview for rule parameters, computed and not saved | Accepted |
 
 ---
 
@@ -428,3 +444,20 @@ This follows the Certificate Transparency idea: publish signed heads, so anyone 
 - No expiry. A checkpoint is evidence and stays valid until the key changes. The key is not rotated (ADR-022), so replacing it makes old checkpoints fail with `bad_signature`.
 - The public list is served by the same server. Anyone with the signing key can sign a new head. A checkpoint shows truncation only when a copy has been kept outside the server.
 - No UI. The demo truncation (`POST /api/v1/admin/dev/truncate-audit`) is API only and returns 404 outside demo mode.
+
+---
+
+## ADR-030: Impact preview for rule parameters, computed and not saved
+
+**Status:** Accepted. Backend and frontend tested. Not checked in a browser.
+
+**Context.** The thresholds for R08, R10, R11 and R12 are placeholders that AICTE has to set (ADR-019, ADR-023). Until now an admin could see the effect of a new threshold only after saving it, and saving creates a new rule version.
+
+**Decision.** `services/rule_preview.py` runs the pure rule twice over the current cycle: once with the active parameters and once with the proposed ones. The rule functions are the same ones the checks use (`domain/rules.py`, `domain/rules_scheduled.py`). `POST /api/v1/admin/rules/{code}/preview` returns the flag count now and proposed, the number added and cleared, up to five examples of each, and counts by institution. It is limited to R08, R10 and R11, and returns 422 for any other code. R08 is pairwise over the cycle, so a flag there is a pair of records. Nothing is written. The preview is not audited, because nothing changes. A change still goes through `PUT /api/v1/admin/rules/{code}`, which is audited and needs a note.
+
+**Consequences.**
+- The preview uses the data in the database now. It says nothing about records that arrive later.
+- R08 compares pairs of records, so the work grows with the square of the number of records in the cycle.
+- The preview does not approve a change. Someone still has to save it.
+- R12 has no preview.
+- A preview leaves no entry in the audit log, so the log does not show who tried a threshold.
