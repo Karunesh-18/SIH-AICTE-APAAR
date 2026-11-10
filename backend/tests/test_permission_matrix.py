@@ -70,6 +70,7 @@ MATRIX = {
     ("POST", "/api/v1/institutions/{kaveri}/api-keys"): row(admin=201, inst_admin=201),
     ("DELETE", "/api/v1/institutions/{kaveri}/api-keys/{key}"): row(admin=200, inst_admin=200),
     ("GET", "/api/v1/admin/rules"): row(admin=200),
+    ("GET", "/api/v1/admin/rules/health"): row(admin=200),
     ("GET", "/api/v1/admin/rules/R02/versions"): row(admin=200),
     ("PUT", "/api/v1/admin/rules/R02"): row(admin=200),
     ("GET", "/api/v1/admin/rules/R02/diff"): row(admin=200),
