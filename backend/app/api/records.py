@@ -16,7 +16,7 @@ from app.api.deps import (
     refuse,
     require_roles,
 )
-from app.api.masking import _mask_name, mask_evidence
+from app.api.masking import _mask_name, hint_out, mask_evidence
 from app.api.schemas import Strict
 from app.api.uploads import upload_out
 from app.db.session import get_db, uow
@@ -99,7 +99,8 @@ def get_record(record_id: str, user: User = Depends(reader), db: Session = Depen
                         "upload_id": v.upload_id, "status": v.status,
                         "superseded_at": v.superseded_at} for v in versions]
     out["flags"] = [{"id": f.id, "rule_code": f.rule_code, "state": f.state, "reason": f.reason,
-                     "evidence": mask_evidence(f.evidence, user)} for f in flags]
+                     "evidence": mask_evidence(f.evidence, user),
+                     "clear_hint": hint_out(f.rule_code, f.evidence)} for f in flags]
     return out
 
 

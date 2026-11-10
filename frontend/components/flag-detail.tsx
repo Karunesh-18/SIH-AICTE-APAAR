@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ClearHint } from "@/components/clear-hint";
 import { Evidence, RecordList, RuleChip, StateBadge, Timeline, Age } from "@/components/flag-parts";
 import { NoteDialog } from "@/components/note-dialog";
 import { PageHeader } from "@/components/page-header";
@@ -61,6 +62,7 @@ export function FlagDetailView({ id, backHref }: { id: string; backHref: string 
             </div>
             <h2 id="fh" className="sr-only">{t("flag.reason")}</h2>
             <p className="text-base">{f.reason}</p>
+            <ClearHint hint={f.clear_hint} />
             {f.state === "ask_institution" && isInst && <p className="text-sm font-medium text-status-alert">{t("inst.flags.asked")}</p>}
             {actions.length > 0 && (
               <div className="flex flex-wrap gap-2">
