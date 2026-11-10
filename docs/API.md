@@ -103,6 +103,8 @@ The idea doc (section 18) gives some different paths. The plan replaces them:
 
 Institution users answer flags on their own records. The plan does not say which of these actions they may use.
 
+Flag responses (the flag list and detail, the record-detail flags and the upload flag items) carry `clear_hint`: `{key, values}`, or `null` when the evidence does not support a hint. `key` is an i18n key such as `hint.R06`. `values` holds counts and limits only, never student identifiers. The hint is advisory: "this clears when …". ADR-032.
+
 ## Dashboards
 
 | Method | Path | Who | Purpose | Audit |
@@ -165,6 +167,7 @@ Institution users answer flags on their own records. The plan does not say which
 | Method | Path | Who | Purpose | Audit |
 |---|---|---|---|---|
 | GET | `/api/v1/admin/rules` | AICTE admin | List rules and their active versions | No |
+| GET | `/api/v1/admin/rules/health` | AICTE admin | Per rule: raised, open, under review, resolved, dismissed, dismissed share, median days to close, oldest open (days). Optional `cycle` and `institution_id`. With `cycle`, institution-level flags with no linked records are left out. `ask_institution` counts as open. Figures only. ADR-031. | No |
 | GET | `/api/v1/admin/rules/{code}/versions` | AICTE admin | Version history of one rule | No |
 | PUT | `/api/v1/admin/rules/{code}` | AICTE admin | Change a rule. Creates a new version. | Yes |
 | GET | `/api/v1/admin/rules/{code}/diff` | AICTE admin | Compare two versions | No |

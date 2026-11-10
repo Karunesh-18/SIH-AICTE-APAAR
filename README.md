@@ -28,6 +28,8 @@ All eight phases of the build plan are built, and later work is merged to `dev`.
 | Beyond the submission: offline check of signed QR tokens on the public verify page (Ed25519 in the browser, cached public key, ADR-028) | Built. Unit tested. Not checked in a browser. |
 | Beyond the submission: signed audit checkpoints that catch truncation of the last rows (ADR-029) | Built. Tested. UI on `/admin/audit` (PR #27). Not checked in a browser. |
 | Beyond the submission: impact preview for R08, R10 and R11 rule parameters, computed and not saved (ADR-030, PR #28) | Built. Tested. Not checked in a browser. |
+| Beyond the submission: rule health panel on `/admin/rules` with per-rule flag outcomes, figures only, nothing changes automatically (ADR-031, PR #29) | Built. Tested. Not checked in a browser. |
+| Beyond the submission: "to clear this flag" hint on each flag, computed from its evidence, advisory wording, English and Hindi (ADR-032, PR #30) | Built. Tested. Not checked in a browser. English wording and R07 need a pass. Hindi not reviewed. |
 | Frontend: role-aware screens for every role, English and Hindi, light and dark themes | Built. Types, lint, unit tests and build pass. A browser pass was done and its findings are fixed (PRs #16, #17). Charts, dialogs and layout not recorded as checked. |
 | Synthetic seed, `python -m app.seed --demo` | Built. |
 | Ten demo cases as one test through the HTTP API | Built. Not run in a browser. |

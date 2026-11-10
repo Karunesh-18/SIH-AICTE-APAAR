@@ -7,7 +7,7 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 ## Current state
 
 - All eight phases of `PLAN.md` are built. Phase status and PR numbers are in `PROGRESS.md`.
-- Backend: 1070 tests pass. Frontend: 141 tests pass. Both counts are from 2026-11-10, run on the PR branches for #27 and #28. `tsc`, `eslint` and `next build` were clean on 2026-11-09 and were not re-run for #27 and #28.
+- Backend: 1098 tests pass on the PR #30 branch and 1084 on the PR #29 branch. Frontend: 152 on the PR #30 branch and 154 on the PR #29 branch. All counts are from 2026-11-10, run on the PR branches. The combined count after merging was not re-run. `tsc`, `eslint` and `next build` were clean on 2026-11-09 and were not re-run for #27 to #30.
 - Live smoke over HTTP with the demo seed: every role's main endpoints return 200, the main pages load, and the audit chain verifies OK.
 - A browser pass was done. Its findings were fixed: theme hydration, nativeButton, Hindi gaps and select labels (commit `7aa625b`, PR #16), and missing evidence labels for R07 to R12 in English and Hindi (PR #17). The regression tests for these are jsdom and source-grep tests, not a browser run. Git does not record which screens the pass covered. Still unverified: charts in both themes, dialogs, layout, the QR scan, and Hindi on the new screens.
 - Refresh tokens rotate, with reuse detection, a grace window and logout revocation (ADR-026, PR #20). Tested.
@@ -17,6 +17,8 @@ Read this first, then `PROGRESS.md`. The full plan is in `PLAN.md`. Decisions ar
 - Offline QR check on the public verify page (PR #25, ADR-028). The browser checks the signature with a cached public key when the API cannot be reached. Unit tested. Not checked in a browser.
 - Signed audit checkpoints (PR #26, ADR-029, migration 0009). Tested. UI on `/admin/audit` (PR #27), not checked in a browser. Checkpoints are created by the scheduler tick, by the API, or by the button on `/admin/audit`.
 - Impact preview for the R08, R10 and R11 thresholds (PR #28, ADR-030). Tested. Nothing is saved. A Preview impact button and panel are on `/admin/rules/[code]`. Not checked in a browser.
+- Rule health panel on `/admin/rules` (PR #29, ADR-031). For each rule: raised, open, resolved, dismissed, dismissed share, median days to close and oldest open. An "Often dismissed" label shows at 50% or more across at least 5 closed flags. Nothing changes automatically, and the page points to Preview impact. Route `GET /api/v1/admin/rules/health`, not audited. Tested. Not checked in a browser.
+- "To clear this flag" hint (PR #30, ADR-032). Each flag carries `clear_hint`, computed from its evidence. Shown as "To clear: …" on `/review/[id]` and the institution record page, in English and Hindi for R01 to R12. Tested. Not checked in a browser.
 - Docker Compose is written but untested (Docker is not installed).
 
 ## How to run from scratch
@@ -97,6 +99,8 @@ Run the backend and frontend as above, with `app.seed --demo` done. The steps be
 | 11 | Offline QR check: stop the backend, reload the verify page after one online visit | `/verify/[token]` (the frontend stays up; only the API is stopped) | None (public page) | The offline notice says the signature is valid and that revocation could not be checked. Without one online visit first, the notice says there is no saved key. |
 | 12 | Truncation caught by checkpoint | `/admin/audit`: Create checkpoint, then Delete last 3 rows (demo mode only), then Verify. The API route still works: `POST /api/v1/admin/audit/checkpoint`, then `POST /api/v1/admin/dev/truncate-audit?n=3`, then `POST /api/v1/admin/audit/verify` | `admin@` (demo mode only) | The checkpoint outcome under Verify fails (reason `missing_rows`). Truncate 3 removes the checkpoint's own audit row and the signed head. A plain chain check does not show a missing head. |
 | 13 | Impact preview (not in the idea doc): change a threshold, Preview impact, then cancel. | `/admin/rules/R08` (or `/admin/rules/R10`, `/admin/rules/R11`) | `admin@` | The panel shows flags now and flags under the proposed value. Nothing is saved, so the rule's version does not change. |
+| 14 | Rule health (not in the idea doc): dismiss and resolve a few flags in `/review`, then look at the table. | `/admin/rules` | `officer@` to close the flags, then `admin@` | Per rule: raised, open, resolved, dismissed, dismissed share, median days to close, oldest open. "Often dismissed" appears at 50% or more across at least 5 closed flags. Nothing changes automatically. |
+| 15 | To clear line (not in the idea doc) on the R06 flag for Kaveri Valley. | `/review/[id]` for the R06 flag | `officer@` | "To clear: this clears when enrolment is at or below 126: 6 fewer records, or 6 more approved seats recorded by AICTE." |
 
 The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases.py`. It goes through the HTTP API, not the browser.
 
@@ -127,6 +131,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 - Background processing and email dispatch run in the process, with no queue. One process is assumed.
 - The frontend `DataTable` sorts the current page only. The audit page filters on the first 100 rows, on the client.
 - `GET /api/v1/institutions/{id}/records` lists current records across all cycles. After `--demo` it also lists the 2025 rows seeded for R10.
+- The "To clear" hint (ADR-032) says "the flagged field" for R07, because R07 evidence has no field name. The English line reads "To clear: this clears when …", which repeats itself and needs a wording pass.
 - Tests run bcrypt at cost 4. The production default is 12.
 
 ## Open questions
@@ -175,7 +180,7 @@ The same ten cases run as one automated test: `backend/tests/test_e2e_demo_cases
 2. Visual check of the dashboard charts in both themes, against the validated palette.
 3. Run `docker compose up` on a machine with Docker. Fix what fails. Until then, the Docker path stays "untested".
 4. SMTP email adapter done (ADR-027, fake-server tested). A real SMS provider is not started; plug it into SmsAdapter.
-5. Native-speaker review of the Hindi strings for the new screens.
+5. Native-speaker review of the Hindi strings for the new screens, including the Hindi "To clear" strings (`hint.*`, PR #30) and the rule health labels (PR #29, en and hi).
 6. The stack `#2` to `#14` is in `dev` (see `PROGRESS.md`). Open the `dev` to `main` PR at this milestone.
 7. Browser check of the checkpoint UI on `/admin/audit` (PR #27), the impact preview on the rule page (PR #28, ADR-030), and the offline QR notice with the API stopped (ADR-028).
 8. Fix the known limits that matter before any real use: audit append retry, shared rate-limit storage, httpOnly cookies behind one origin, forced password change.

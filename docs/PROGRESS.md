@@ -6,10 +6,11 @@ All eight phases in `docs/PLAN.md` are built. The phases are delivered as a stac
 
 ## Checks
 
-Run by the maintainer on 2026-11-09:
+Run on 2026-11-10 on the PR branches, not on merged `dev`:
 
-- Backend: 1003 tests pass.
-- Frontend: 106 tests pass. `tsc`, `eslint` and `next build` are clean.
+- Backend: 1098 tests pass (PR #30 branch) and 1084 pass (PR #29 branch).
+- Frontend: 152 tests pass (PR #30 branch) and 154 pass (PR #29 branch). The combined count after merging was not re-run.
+- `tsc`, `eslint` and `next build` were clean on 2026-11-09 (earlier run: backend 1003, frontend 106). They were not re-run on the PR branches.
 - Live smoke over HTTP (uvicorn and `next dev`, `python -m app.seed --demo`): every role's main endpoints return 200, and the main pages load. The audit chain verifies OK.
 
 Not verified:
@@ -41,7 +42,7 @@ Phase 7 notes:
 
 ## Merged to `dev` after the stack
 
-Test counts in the Checks section are from 2026-11-09. They were not re-run for these PRs.
+Test counts in the Checks section are from the PR branches, run 2026-11-10.
 
 - PR #15: frontend critique fixes (brand lockup, type scale, Reports toolbar groups, i18n gaps, demo login buttons off by default, select theming).
 - PR #16: browser-pass findings (theme hydration, nativeButton, Hindi gaps, select labels).
@@ -55,6 +56,8 @@ Test counts in the Checks section are from 2026-11-09. They were not re-run for 
 - PR #26: signed audit checkpoints that catch truncation of the last rows (ADR-029, migration 0009). Tested. No UI yet. The full backend suite was 1058 passed on the branch.
 - PR #27: checkpoint UI on `/admin/audit`. Create checkpoint, the checkpoint outcome under verify, a demo-only Delete last 3 rows button with a confirm dialog, and a list of recent checkpoints with copy-token. Not checked in a browser.
 - PR #28: impact preview for R08, R10 and R11 rule parameters (ADR-030). `POST /api/v1/admin/rules/{code}/preview` and a Preview impact button on the rule edit page. Nothing is saved. Full backend suite 1070 passed and frontend 141 passed on the branch. Not checked in a browser.
+- PR #29: rule health panel on `/admin/rules`. Per-rule flag outcomes, figures only. `GET /api/v1/admin/rules/health`, not audited (ADR-031). Backend 1084 and frontend 154 on the branch. Not checked in a browser.
+- PR #30: "to clear this flag" hint, computed from the flag evidence (ADR-032). Shown on `/review/[id]` and the institution record page, in English and Hindi for R01 to R12. Backend 1098 and frontend 152 on the branch. Not checked in a browser.
 
 ## Stacked PRs
 

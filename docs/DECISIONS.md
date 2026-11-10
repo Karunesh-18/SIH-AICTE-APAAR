@@ -45,6 +45,8 @@ Source for ADR-001 to ADR-006: `docs/PLAN.md` (settled decisions, grilling round
 | ADR-028 | Offline signature check on the public verify page | Accepted |
 | ADR-029 | Signed audit checkpoints | Accepted |
 | ADR-030 | Impact preview for rule parameters, computed and not saved | Accepted |
+| ADR-031 | Rule health shows figures only, with no automatic action | Accepted |
+| ADR-032 | The "to clear this flag" hint is computed from the stored evidence | Accepted |
 
 ---
 
@@ -427,7 +429,7 @@ These are settled in `docs/PLAN.md`. They are listed here so that they are easy 
 
 ## ADR-029: Signed audit checkpoints
 
-**Status.** Accepted. Backend tested. No UI yet.
+**Status.** Accepted. Backend tested. UI on `/admin/audit` (PR #27), not checked in a browser.
 
 **Context.** The audit chain links each row to the row before it. Editing or removing a row in the middle breaks the chain. Removing the last rows does not, because nothing after them points back to them. This was a known limit.
 
@@ -443,7 +445,7 @@ This follows the Certificate Transparency idea: publish signed heads, so anyone 
 - A checkpoint writes its own row after the head. Deleting only that row leaves the checkpoint valid. Deleting two or more rows from the end removes the head and is caught as `missing_rows`. The demo deletes three.
 - No expiry. A checkpoint is evidence and stays valid until the key changes. The key is not rotated (ADR-022), so replacing it makes old checkpoints fail with `bad_signature`.
 - The public list is served by the same server. Anyone with the signing key can sign a new head. A checkpoint shows truncation only when a copy has been kept outside the server.
-- No UI. The demo truncation (`POST /api/v1/admin/dev/truncate-audit`) is API only and returns 404 outside demo mode.
+- UI on `/admin/audit` (PR #27): create a checkpoint, see the checkpoint outcome under verify, and copy a checkpoint token. The demo truncation route (`POST /api/v1/admin/dev/truncate-audit`) returns 404 outside demo mode. A demo-only Delete last 3 rows button is on the page. Not checked in a browser.
 
 ---
 
@@ -461,3 +463,47 @@ This follows the Certificate Transparency idea: publish signed heads, so anyone 
 - The preview does not approve a change. Someone still has to save it.
 - R12 has no preview.
 - A preview leaves no entry in the audit log, so the log does not show who tried a threshold.
+
+---
+
+## ADR-031: Rule health shows figures only, with no automatic action
+
+**Status:** Accepted. Backend and frontend tested. Not checked in a browser.
+
+**Context.** Officers close flags one at a time. Nobody can see, per rule, how those flags were closed: how many were dismissed, and how long they stayed open. A rule that is dismissed most of the time may be wrong, or officers may be reading it differently. The admin had no view of this.
+
+**Decision.** `domain/rule_health.py` is pure. It takes every rule code and each flag's state, raised time and close time, and returns per rule: raised, open, under review, resolved, dismissed, dismissed share, median days to close, and oldest open (days). `services/rule_health.py` gathers those facts. `GET /api/v1/admin/rules/health?cycle=&institution_id=` returns the table. It is AICTE admin only and is shown on `/admin/rules`. With `cycle` set, institution-level scheduled flags with no linked records are left out. `ask_institution` counts as open.
+
+The page shows an "Often dismissed" label when the dismissed share is 50% or more across at least 5 closed flags (resolved plus dismissed). The label is a prompt to look at the rule. It is not a finding. The 5-flag floor stops one flag from showing 100%. The 50% line is a plain split, chosen for the demo, not tuned on data. The label and its numbers are computed in the frontend (`lib/rules.ts`). The page carries a note that nothing changes automatically and points to Preview impact (ADR-030) for a threshold change.
+
+The route is not audited. It is a dashboard read, and the audit rule in `CLAUDE.md` excludes list and dashboard reads.
+
+**Consequences.**
+- Figures only. Nothing is written. No rule, flag or record changes because of this page.
+- The numbers show how officers closed flags, not whether the rule is right. A high dismissed share can mean a noisy rule, or officers who disagree with it.
+- The 50% and 5-flag values are fixed in code. AICTE has not set them.
+- The log does not show who looked at the page.
+- Hindi strings are not reviewed by a native speaker.
+
+---
+
+## ADR-032: The "to clear this flag" hint is computed from the stored evidence
+
+**Status:** Accepted. Backend and frontend tested. Not checked in a browser. Hindi not reviewed.
+
+**Context.** A flag says what is wrong, but not what would make it go away. The officer and the institution each had to work that out from the evidence.
+
+**Decision.** `domain/clear_hint.py` is pure. It takes the rule code and the flag's stored evidence and returns `(key, values)`, or `None`. The key is `hint.<code>`. The values are counts and limits taken from the evidence. For example, R02 gets the expected digits, R06 gets the allowed and excess counts, and R11 gets the number of records still needed. R01, R03, R05, R07, R08, R09 and R12 have no numbers, so their values are empty. The hint is computed when the flag is read and is not stored. It is returned as `clear_hint: {key, values} | null` on the flag list and detail, the record-detail flags and the upload flag items, through `masking.hint_out`. The pages show "To clear: …" from the i18n strings, in English and Hindi, for R01 to R12.
+
+The wording is advisory: "this clears when …". A test checks the strings for penalty, reject and must.
+
+The values carry no identifiers. Counts and limits do not identify a student, which fits the masking rule in `CLAUDE.md`.
+
+When the evidence is missing, not numeric, or the code is unknown, the function returns `None` and the flag shows without the line. A wrong number in an advisory line would be worse than none. Any exception also returns `None`, so the hint cannot break a response.
+
+**Consequences.**
+- The hint follows the evidence, so it stays right if the evidence changes.
+- R07 says "the flagged field", because its evidence has no field name. A field name would need to be stored in the R07 evidence. Not built.
+- The English line reads "To clear: this clears when …", which repeats itself. It needs a wording pass.
+- Hindi strings are not reviewed by a native speaker.
+- The hint says what the rule would need. It does not say that anyone will act.

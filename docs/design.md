@@ -28,6 +28,8 @@ Student-level data submission, validation, monitoring and consent-based verifica
 | Beyond the submission: offline check of signed QR tokens on the public verify page (Ed25519 in the browser, cached public key, ADR-028) | Built. Unit tested. Not checked in a browser. |
 | Beyond the submission: signed audit checkpoints that catch truncation of the last rows (ADR-029) | Built. Tested. UI on `/admin/audit` (PR #27). Not checked in a browser. |
 | Beyond the submission: impact preview for R08, R10 and R11 rule parameters, computed and not saved (ADR-030, PR #28) | Built. Tested. Not checked in a browser. |
+| Beyond the submission: rule health panel on `/admin/rules` with per-rule flag outcomes, figures only, nothing changes automatically (ADR-031, PR #29) | Built. Tested. Not checked in a browser. |
+| Beyond the submission: "to clear this flag" hint on each flag, computed from its evidence, advisory wording, English and Hindi (ADR-032, PR #30) | Built. Tested. Not checked in a browser. English wording and R07 need a pass. Hindi not reviewed. |
 | Privacy masking of student fields in the API serializer | Built. Tested. |
 | APAAR validation against a live registry | Proposed. Needs authorisation from the issuing authority. R03 runs on a mock. |
 | Real email (SMTP) | Built behind the email interface (ADR-027). Tested against a fake server only. |
