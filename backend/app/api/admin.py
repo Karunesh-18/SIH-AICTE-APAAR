@@ -15,7 +15,16 @@ from app.models.audit import AuditLog
 from app.models.enums import Role
 from app.models.notify import Outbox
 from app.models.user import User
-from app.services import anomaly, audit, clock_admin, notify, rule_preview, rules_admin, windows
+from app.services import (
+    anomaly,
+    audit,
+    clock_admin,
+    notify,
+    rule_health,
+    rule_preview,
+    rules_admin,
+    windows,
+)
 from app.services.errors import Invalid, NotFound
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -147,6 +156,12 @@ def _guard(fn, *a):
 def list_rules(_: User = Depends(admin_only), db: Session = Depends(get_db)):
     return [{"code": r.code, "scope": r.scope, "title": r.title,
              "active": _version_out(v) if v else None} for r, v in rules_admin.list_rules(db)]
+
+
+@router.get("/rules/health")
+def rules_health(cycle: int | None = None, institution_id: str | None = None,
+                 _: User = Depends(admin_only), db: Session = Depends(get_db)):
+    return rule_health.health(db, cycle, institution_id)  # dashboard read: not audited
 
 
 @router.get("/rules/{code}/versions")

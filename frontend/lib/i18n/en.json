@@ -805,5 +805,16 @@
  "reports.reset": "Reset filters",
  "brand.tagline": "Student records, checked and verified",
  "auth.welcome": "Sign in to continue",
- "auth.panelBody": "One record per student, keyed by APAAR ID. Every check names its rule and shows its numbers."
+ "auth.panelBody": "One record per student, keyed by APAAR ID. Every check names its rule and shows its numbers.",
+ "rh.title": "Rule health",
+ "rh.raised": "Raised",
+ "rh.open": "Open",
+ "rh.resolved": "Resolved",
+ "rh.dismissed": "Dismissed",
+ "rh.share": "Dismissed share",
+ "rh.median": "Median days to close",
+ "rh.oldest": "Oldest open (days)",
+ "rh.often": "Often dismissed",
+ "rh.note": "Figures only. A rule that is often dismissed may need a different threshold. Use Preview impact before changing it. Nothing changes automatically.",
+ "rh.empty": "No rules."
 }
